@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../data/models/player_model.dart';
+import '../../../data/datasources/player_local_datasource.dart';
 import '/../widgets/players/player_form_dialog.dart';
 
 class PlayersPage extends StatefulWidget {
@@ -10,25 +11,38 @@ class PlayersPage extends StatefulWidget {
 }
 
 class _PlayersPageState extends State<PlayersPage> {
-  final List<PlayerModel> _players = [];
+  final PlayerLocalDataSource _dataSource = PlayerLocalDataSource();
+  List<PlayerModel> _players = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPlayers();
+  }
+
+  void _loadPlayers() {
+    final players = _dataSource.getAllPlayers();
+
+    setState(() {
+      _players = players;
+    });
+  }
 
   void _openAddPlayerDialog() {
     showDialog(
       context: context,
       builder: (_) => PlayerFormDialog(
-        onSave: (player) {
-          setState(() {
-            _players.add(player);
-          });
+        onSave: (player) async {
+          await _dataSource.addPlayer(player);
+          _loadPlayers();
         },
       ),
     );
   }
 
-  void _removePlayer(String playerId) {
-    setState(() {
-      _players.removeWhere((player) => player.id == playerId);
-    });
+  void _removePlayer(String playerId) async {
+    await _dataSource.deletePlayer(playerId);
+    _loadPlayers();
   }
 
   @override
