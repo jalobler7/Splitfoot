@@ -3,10 +3,12 @@ import '../../../data/models/player_model.dart';
 
 class PlayerFormDialog extends StatefulWidget {
   final void Function(PlayerModel player) onSave;
+  final PlayerModel? initialPlayer;
 
   const PlayerFormDialog({
     super.key,
     required this.onSave,
+    this.initialPlayer,
   });
 
   @override
@@ -16,27 +18,60 @@ class PlayerFormDialog extends StatefulWidget {
 class _PlayerFormDialogState extends State<PlayerFormDialog> {
   final _formKey = GlobalKey<FormState>();
 
-  final _nameController = TextEditingController();
-  final _attackController = TextEditingController();
-  final _defenseController = TextEditingController();
-  final _staminaController = TextEditingController();
+  late final TextEditingController _nameController;
+  late final TextEditingController _attackController;
+  late final TextEditingController _defenseController;
+  late final TextEditingController _staminaController;
 
-  String _selectedPosition = 'Ala';
+  late String _selectedSport;
+  late String _selectedPosition;
 
-  final List<String> _positions = [
-    'Pivo',
-    'Ala',
-    'Fixo',
-    'Meia',
-    'Atacante',
-    'Volante',
-    'Ponta',
-    'Centroavante',
-    'Zagueiro',
-    'Lateral Esquerdo',
-    'Lateral Direito',
-    'Meia-Atacante',
-  ];
+  final Map<String, List<String>> _positionsBySport = {
+    'Futsal': [
+      'Pivo',
+      'Ala',
+      'Fixo',
+    ],
+    'Fut7': [
+      'Fixo',
+      'Ala',
+      'Meia',
+      'Atacante',
+    ],
+    'Fut11': [
+      'Lateral Esquerdo',
+      'Zagueiro',
+      'Lateral Direito',
+      'Meia-Atacante',
+      'Volante',
+      'Ponta',
+      'Centroavante',
+    ],
+  };
+
+  bool get _isEditing => widget.initialPlayer != null;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final player = widget.initialPlayer;
+
+    _nameController = TextEditingController(text: player?.name ?? '');
+    _attackController =
+        TextEditingController(text: player?.attack.toString() ?? '');
+    _defenseController =
+        TextEditingController(text: player?.defense.toString() ?? '');
+    _staminaController =
+        TextEditingController(text: player?.stamina.toString() ?? '');
+
+    _selectedSport = player?.sport ?? 'Futsal';
+
+    final availablePositions = _positionsBySport[_selectedSport]!;
+    _selectedPosition = availablePositions.contains(player?.position)
+        ? player!.position
+        : availablePositions.first;
+  }
 
   @override
   void dispose() {
@@ -47,18 +82,32 @@ class _PlayerFormDialogState extends State<PlayerFormDialog> {
     super.dispose();
   }
 
+  void _onSportChanged(String? value) {
+    if (value == null) return;
+
+    final newPositions = _positionsBySport[value] ?? [];
+
+    setState(() {
+      _selectedSport = value;
+      _selectedPosition = newPositions.first;
+    });
+  }
+
   void _save() {
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
+    final existingPlayer = widget.initialPlayer;
+
     final player = PlayerModel(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      id: existingPlayer?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
       name: _nameController.text.trim(),
       attack: int.parse(_attackController.text.trim()),
       defense: int.parse(_defenseController.text.trim()),
       stamina: int.parse(_staminaController.text.trim()),
       position: _selectedPosition,
+      sport: _selectedSport,
     );
 
     widget.onSave(player);
@@ -96,8 +145,10 @@ class _PlayerFormDialogState extends State<PlayerFormDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final currentPositions = _positionsBySport[_selectedSport]!;
+
     return AlertDialog(
-      title: const Text('Adicionar jogador'),
+      title: Text(_isEditing ? 'Editar jogador' : 'Adicionar jogador'),
       content: SingleChildScrollView(
         child: Form(
           key: _formKey,
@@ -140,11 +191,27 @@ class _PlayerFormDialogState extends State<PlayerFormDialog> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                initialValue: _selectedPosition,
+                value: _selectedSport,
+                decoration: const InputDecoration(
+                  labelText: 'Esporte',
+                ),
+                items: _positionsBySport.keys
+                    .map(
+                      (sport) => DropdownMenuItem(
+                    value: sport,
+                    child: Text(sport),
+                  ),
+                )
+                    .toList(),
+                onChanged: _onSportChanged,
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: _selectedPosition,
                 decoration: const InputDecoration(
                   labelText: 'Posição',
                 ),
-                items: _positions
+                items: currentPositions
                     .map(
                       (position) => DropdownMenuItem(
                     value: position,
@@ -170,7 +237,7 @@ class _PlayerFormDialogState extends State<PlayerFormDialog> {
         ),
         ElevatedButton(
           onPressed: _save,
-          child: const Text('Salvar'),
+          child: Text(_isEditing ? 'Salvar alterações' : 'Salvar'),
         ),
       ],
     );

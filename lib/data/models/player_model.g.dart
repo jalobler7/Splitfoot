@@ -23,13 +23,14 @@ class PlayerModelAdapter extends TypeAdapter<PlayerModel> {
       defense: fields[3] as int,
       stamina: fields[4] as int,
       position: fields[5] as String,
+      sport: fields[6] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, PlayerModel obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(7)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -41,7 +42,9 @@ class PlayerModelAdapter extends TypeAdapter<PlayerModel> {
       ..writeByte(4)
       ..write(obj.stamina)
       ..writeByte(5)
-      ..write(obj.position);
+      ..write(obj.position)
+      ..writeByte(6)
+      ..write(obj.sport);
   }
 
   @override

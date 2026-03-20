@@ -73,11 +73,35 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
     }
   }
 
+  String _sportKey(SportType sport) {
+    switch (sport) {
+      case SportType.futsal:
+        return 'Futsal';
+      case SportType.fut7:
+        return 'Fut7';
+      case SportType.fut11:
+        return 'Fut11';
+    }
+  }
+
+  void _onSportChanged(SportType? value) {
+    if (value == null) return;
+
+    setState(() {
+      _selectedSport = value;
+      _selectedPlayers.clear();
+    });
+  }
+
   void _generateTeams() {
     final teamA = int.tryParse(_teamAController.text) ?? 0;
     final teamB = int.tryParse(_teamBController.text) ?? 0;
 
-    final selectedPlayersList = _allPlayers
+    final filteredPlayers = _allPlayers
+        .where((player) => player.sport == _sportKey(_selectedSport))
+        .toList();
+
+    final selectedPlayersList = filteredPlayers
         .where((player) => _selectedPlayers.contains(player.id))
         .toList();
 
@@ -159,9 +183,17 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
 
   @override
   Widget build(BuildContext context) {
+    final visiblePlayers = _allPlayers
+        .where((player) => player.sport == _sportKey(_selectedSport))
+        .toList();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Montar Partida'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.go(AppRoutes.home),
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -178,10 +210,7 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
                 ),
               )
                   .toList(),
-              onChanged: (value) {
-                if (value == null) return;
-                setState(() => _selectedSport = value);
-              },
+              onChanged: _onSportChanged,
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<BalanceMode>(
@@ -221,23 +250,27 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
               ],
             ),
             const SizedBox(height: 16),
-            const Align(
+            Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Jogadores',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                'Jogadores de ${_sportLabel(_selectedSport)}',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
             const SizedBox(height: 8),
             Expanded(
-              child: _allPlayers.isEmpty
-                  ? const Center(child: Text('Nenhum jogador cadastrado'))
+              child: visiblePlayers.isEmpty
+                  ? const Center(
+                child: Text('Nenhum jogador cadastrado para este esporte'),
+              )
                   : ListView.builder(
-                itemCount: _allPlayers.length,
+                itemCount: visiblePlayers.length,
                 itemBuilder: (context, index) {
-                  final player = _allPlayers[index];
-                  final isSelected =
-                  _selectedPlayers.contains(player.id);
+                  final player = visiblePlayers[index];
+                  final isSelected = _selectedPlayers.contains(player.id);
 
                   return CheckboxListTile(
                     value: isSelected,

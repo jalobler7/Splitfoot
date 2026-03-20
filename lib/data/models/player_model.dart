@@ -23,6 +23,9 @@ class PlayerModel extends HiveObject {
   @HiveField(5)
   final String position;
 
+  @HiveField(6)
+  final String sport;
+
   PlayerModel({
     required this.id,
     required this.name,
@@ -30,6 +33,7 @@ class PlayerModel extends HiveObject {
     required this.defense,
     required this.stamina,
     required this.position,
+    required this.sport,
   });
 
   int get overall => OverallUtils.calculateOverall(
@@ -37,4 +41,24 @@ class PlayerModel extends HiveObject {
     defense: defense,
     stamina: stamina,
   );
+
+  PlayerModel copyWith({
+    String? id,
+    String? name,
+    int? attack,
+    int? defense,
+    int? stamina,
+    String? position,
+    String? sport,
+  }) {
+    return PlayerModel(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      attack: attack ?? this.attack,
+      defense: defense ?? this.defense,
+      stamina: stamina ?? this.stamina,
+      position: position ?? this.position,
+      sport: sport ?? this.sport,
+    );
+  }
 }

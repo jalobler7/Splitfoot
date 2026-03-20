@@ -12,6 +12,10 @@ class PlayerLocalDataSource {
     await _box.put(player.id, player);
   }
 
+  Future<void> updatePlayer(PlayerModel player) async {
+    await _box.put(player.id, player);
+  }
+
   Future<void> deletePlayer(String id) async {
     await _box.delete(id);
   }

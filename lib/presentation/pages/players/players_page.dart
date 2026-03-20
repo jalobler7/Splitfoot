@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../../data/models/player_model.dart';
+import 'package:go_router/go_router.dart';
+import '../../../app/routes/app_routes.dart';
 import '../../../data/datasources/player_local_datasource.dart';
+import '../../../data/models/player_model.dart';
 import '/../widgets/players/player_form_dialog.dart';
 
 class PlayersPage extends StatefulWidget {
@@ -40,6 +42,19 @@ class _PlayersPageState extends State<PlayersPage> {
     );
   }
 
+  void _openEditPlayerDialog(PlayerModel player) {
+    showDialog(
+      context: context,
+      builder: (_) => PlayerFormDialog(
+        initialPlayer: player,
+        onSave: (updatedPlayer) async {
+          await _dataSource.updatePlayer(updatedPlayer);
+          _loadPlayers();
+        },
+      ),
+    );
+  }
+
   void _removePlayer(String playerId) async {
     await _dataSource.deletePlayer(playerId);
     _loadPlayers();
@@ -50,6 +65,10 @@ class _PlayersPageState extends State<PlayersPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Jogadores'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.go(AppRoutes.home),
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _openAddPlayerDialog,
@@ -88,6 +107,7 @@ class _PlayersPageState extends State<PlayersPage> {
                           ),
                         ),
                         const SizedBox(height: 6),
+                        Text('Esporte: ${player.sport}'),
                         Text('Posição: ${player.position}'),
                         Text('Ataque: ${player.attack}'),
                         Text('Defesa: ${player.defense}'),
@@ -95,9 +115,17 @@ class _PlayersPageState extends State<PlayersPage> {
                       ],
                     ),
                   ),
-                  IconButton(
-                    onPressed: () => _removePlayer(player.id),
-                    icon: const Icon(Icons.delete_outline),
+                  Column(
+                    children: [
+                      IconButton(
+                        onPressed: () => _openEditPlayerDialog(player),
+                        icon: const Icon(Icons.edit_outlined),
+                      ),
+                      IconButton(
+                        onPressed: () => _removePlayer(player.id),
+                        icon: const Icon(Icons.delete_outline),
+                      ),
+                    ],
                   ),
                 ],
               ),
