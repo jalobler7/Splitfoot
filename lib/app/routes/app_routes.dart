@@ -1,9 +1,11 @@
 import 'package:go_router/go_router.dart';
+import '../../data/models/player_model.dart';
+import '../../domain/entities/team_result.dart';
 import '../../presentation/pages/home/home_page.dart';
-import '../../presentation/pages/players/players_page.dart';
 import '../../presentation/pages/match_setup/match_setup_page.dart';
-import '../../presentation/pages/result/result_page.dart';
+import '../../presentation/pages/players/players_page.dart';
 import '../../presentation/pages/ranking/ranking_page.dart';
+import '../../presentation/pages/result/result_page.dart';
 
 class AppRoutes {
   static const home = '/';
@@ -30,11 +32,17 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.result,
-      builder: (context, state) => const ResultPage(),
+      builder: (context, state) {
+        final result = state.extra as TeamResult;
+        return ResultPage(result: result);
+      },
     ),
     GoRoute(
       path: AppRoutes.ranking,
-      builder: (context, state) => const RankingPage(),
+      builder: (context, state) {
+        final players = state.extra as List<PlayerModel>;
+        return RankingPage(players: players);
+      },
     ),
   ],
 );

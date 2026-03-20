@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../../core/enums/sport_type.dart';
+import 'package:go_router/go_router.dart';
+import '../../../app/routes/app_routes.dart';
 import '../../../core/enums/balance_mode.dart';
-import '../../../data/models/player_model.dart';
+import '../../../core/enums/sport_type.dart';
 import '../../../data/datasources/player_local_datasource.dart';
+import '../../../data/models/player_model.dart';
+import '../../../domain/services/team_balance_service.dart';
 
 class MatchSetupPage extends StatefulWidget {
   const MatchSetupPage({super.key});
@@ -13,6 +16,7 @@ class MatchSetupPage extends StatefulWidget {
 
 class _MatchSetupPageState extends State<MatchSetupPage> {
   final PlayerLocalDataSource _dataSource = PlayerLocalDataSource();
+  final TeamBalanceService _teamBalanceService = TeamBalanceService();
 
   List<PlayerModel> _allPlayers = [];
   final Set<String> _selectedPlayers = {};
@@ -73,9 +77,20 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
     final teamA = int.tryParse(_teamAController.text) ?? 0;
     final teamB = int.tryParse(_teamBController.text) ?? 0;
 
-    final totalSelected = _selectedPlayers.length;
+    final selectedPlayersList = _allPlayers
+        .where((player) => _selectedPlayers.contains(player.id))
+        .toList();
 
-    if (teamA + teamB != totalSelected) {
+    if (teamA <= 0 || teamB <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Os dois times precisam ter ao menos 1 jogador'),
+        ),
+      );
+      return;
+    }
+
+    if (teamA + teamB != selectedPlayersList.length) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Quantidade de jogadores não bate com os times'),
@@ -84,7 +99,7 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
       return;
     }
 
-    if (totalSelected < 2) {
+    if (selectedPlayersList.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Selecione jogadores suficientes'),
@@ -93,12 +108,46 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
       return;
     }
 
-    // Aqui vamos implementar depois
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Pronto para gerar os times 🚀'),
-      ),
-    );
+    try {
+      switch (_balanceMode) {
+        case BalanceMode.overallAverage:
+          final result = _teamBalanceService.balanceByOverall(
+            players: selectedPlayersList,
+            teamASize: teamA,
+            teamBSize: teamB,
+          );
+
+          context.push(AppRoutes.result, extra: result);
+          break;
+
+        case BalanceMode.attributes:
+          final result = _teamBalanceService.balanceByAttributes(
+            players: selectedPlayersList,
+            teamASize: teamA,
+            teamBSize: teamB,
+          );
+
+          context.push(AppRoutes.result, extra: result);
+          break;
+
+        case BalanceMode.positions:
+          final result = _teamBalanceService.balanceByPosition(
+            players: selectedPlayersList,
+            teamASize: teamA,
+            teamBSize: teamB,
+            sport: _selectedSport,
+          );
+
+          context.push(AppRoutes.result, extra: result);
+          break;
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao gerar times: $e'),
+        ),
+      );
+    }
   }
 
   @override
@@ -118,7 +167,6 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Esporte
             DropdownButtonFormField<SportType>(
               value: _selectedSport,
               decoration: const InputDecoration(labelText: 'Esporte'),
@@ -135,10 +183,7 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
                 setState(() => _selectedSport = value);
               },
             ),
-
             const SizedBox(height: 12),
-
-            // Modo de balanceamento
             DropdownButtonFormField<BalanceMode>(
               value: _balanceMode,
               decoration: const InputDecoration(labelText: 'Modo de divisão'),
@@ -155,18 +200,14 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
                 setState(() => _balanceMode = value);
               },
             ),
-
             const SizedBox(height: 12),
-
-            // Times
             Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _teamAController,
                     keyboardType: TextInputType.number,
-                    decoration:
-                    const InputDecoration(labelText: 'Time A'),
+                    decoration: const InputDecoration(labelText: 'Time A'),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -174,15 +215,12 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
                   child: TextField(
                     controller: _teamBController,
                     keyboardType: TextInputType.number,
-                    decoration:
-                    const InputDecoration(labelText: 'Time B'),
+                    decoration: const InputDecoration(labelText: 'Time B'),
                   ),
                 ),
               ],
             ),
-
             const SizedBox(height: 16),
-
             const Align(
               alignment: Alignment.centerLeft,
               child: Text(
@@ -190,9 +228,7 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
-
             const SizedBox(height: 8),
-
             Expanded(
               child: _allPlayers.isEmpty
                   ? const Center(child: Text('Nenhum jogador cadastrado'))
@@ -208,12 +244,12 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
                     onChanged: (_) => _togglePlayer(player.id),
                     title: Text(player.name),
                     subtitle: Text(
-                        '${player.position} • Overall ${player.overall}'),
+                      '${player.position} • Overall ${player.overall}',
+                    ),
                   );
                 },
               ),
             ),
-
             ElevatedButton(
               onPressed: _generateTeams,
               child: const Text('Gerar Times'),
