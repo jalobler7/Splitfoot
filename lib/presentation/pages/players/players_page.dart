@@ -55,9 +55,33 @@ class _PlayersPageState extends State<PlayersPage> {
     );
   }
 
-  void _removePlayer(String playerId) async {
+  Future<void> _removePlayer(String playerId) async {
     await _dataSource.deletePlayer(playerId);
+    if (!mounted) return;
     _loadPlayers();
+  }
+
+  Future<void> _confirmDeletePlayer(PlayerModel player) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        content: const Text('Tem certeza que deseja excluir este jogador?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () async {
+              await _removePlayer(player.id);
+              if (!dialogContext.mounted) return;
+              Navigator.of(dialogContext).pop();
+            },
+            child: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -122,7 +146,7 @@ class _PlayersPageState extends State<PlayersPage> {
                         icon: const Icon(Icons.edit_outlined),
                       ),
                       IconButton(
-                        onPressed: () => _removePlayer(player.id),
+                        onPressed: () => _confirmDeletePlayer(player),
                         icon: const Icon(Icons.delete_outline),
                       ),
                     ],
