@@ -5,6 +5,7 @@ import '../../../core/enums/balance_mode.dart';
 import '../../../core/enums/sport_type.dart';
 import '../../../data/datasources/player_local_datasource.dart';
 import '../../../data/models/player_model.dart';
+import '../../../domain/entities/team_result.dart';
 import '../../../domain/services/team_balance_service.dart';
 
 class MatchSetupPage extends StatefulWidget {
@@ -24,13 +25,19 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
   SportType _selectedSport = SportType.futsal;
   BalanceMode _balanceMode = BalanceMode.overallAverage;
 
-  final _teamAController = TextEditingController(text: '5');
-  final _teamBController = TextEditingController(text: '5');
+  final TextEditingController _teamAController =
+  TextEditingController(text: '5');
+  final TextEditingController _teamBController =
+  TextEditingController(text: '5');
+  final TextEditingController _searchController = TextEditingController();
+
+  String _searchText = '';
 
   @override
   void initState() {
     super.initState();
     _loadPlayers();
+    _searchController.addListener(_onSearchChanged);
   }
 
   void _loadPlayers() {
@@ -38,6 +45,12 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
 
     setState(() {
       _allPlayers = players;
+    });
+  }
+
+  void _onSearchChanged() {
+    setState(() {
+      _searchText = _searchController.text.trim().toLowerCase();
     });
   }
 
@@ -90,7 +103,60 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
     setState(() {
       _selectedSport = value;
       _selectedPlayers.clear();
+      _searchController.clear();
+      _searchText = '';
     });
+  }
+
+  int _expectedTotalPlayers() {
+    final teamA = int.tryParse(_teamAController.text) ?? 0;
+    final teamB = int.tryParse(_teamBController.text) ?? 0;
+    return teamA + teamB;
+  }
+
+  int _selectedCount() {
+    return _selectedPlayers.length;
+  }
+
+  String _selectionStatusText() {
+    final selected = _selectedCount();
+    final expected = _expectedTotalPlayers();
+
+    if (expected <= 0) {
+      return 'Defina a quantidade de jogadores dos times';
+    }
+
+    if (selected == expected) {
+      return 'Selecionados: $selected de $expected';
+    }
+
+    if (selected < expected) {
+      final missing = expected - selected;
+      return 'Selecionados: $selected de $expected • Faltam $missing';
+    }
+
+    final extra = selected - expected;
+    return 'Selecionados: $selected de $expected • Excedeu $extra';
+  }
+
+  Color _selectionStatusColor(BuildContext context) {
+    final selected = _selectedCount();
+    final expected = _expectedTotalPlayers();
+    final colorScheme = Theme.of(context).colorScheme;
+
+    if (expected <= 0) {
+      return colorScheme.outline;
+    }
+
+    if (selected == expected) {
+      return Colors.green;
+    }
+
+    if (selected < expected) {
+      return Colors.orange;
+    }
+
+    return Colors.red;
   }
 
   void _generateTeams() {
@@ -133,38 +199,48 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
     }
 
     try {
+      List<TeamResult> results;
+
       switch (_balanceMode) {
         case BalanceMode.overallAverage:
-          final result = _teamBalanceService.balanceByOverall(
+          results = _teamBalanceService.balanceTopByOverall(
             players: selectedPlayersList,
             teamASize: teamA,
             teamBSize: teamB,
+            limit: 5,
           );
-
-          context.push(AppRoutes.result, extra: result);
           break;
 
         case BalanceMode.attributes:
-          final result = _teamBalanceService.balanceByAttributes(
+          results = _teamBalanceService.balanceTopByAttributes(
             players: selectedPlayersList,
             teamASize: teamA,
             teamBSize: teamB,
+            limit: 5,
           );
-
-          context.push(AppRoutes.result, extra: result);
           break;
 
         case BalanceMode.positions:
-          final result = _teamBalanceService.balanceByPosition(
+          results = _teamBalanceService.balanceTopByPosition(
             players: selectedPlayersList,
             teamASize: teamA,
             teamBSize: teamB,
             sport: _selectedSport,
+            limit: 5,
           );
-
-          context.push(AppRoutes.result, extra: result);
           break;
       }
+
+      if (results.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Nenhuma opção de escalação foi encontrada'),
+          ),
+        );
+        return;
+      }
+
+      context.push(AppRoutes.result, extra: results);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -178,14 +254,23 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
   void dispose() {
     _teamAController.dispose();
     _teamBController.dispose();
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final visiblePlayers = _allPlayers
+    final sportPlayers = _allPlayers
         .where((player) => player.sport == _sportKey(_selectedSport))
         .toList();
+
+    final visiblePlayers = sportPlayers.where((player) {
+      if (_searchText.isEmpty) return true;
+      return player.name.toLowerCase().contains(_searchText);
+    }).toList();
+
+    final selectionColor = _selectionStatusColor(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -237,6 +322,7 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
                     controller: _teamAController,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(labelText: 'Time A'),
+                    onChanged: (_) => setState(() {}),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -245,9 +331,42 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
                     controller: _teamBController,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(labelText: 'Time B'),
+                    onChanged: (_) => setState(() {}),
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                labelText: 'Buscar atleta por nome',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchText.isNotEmpty
+                    ? IconButton(
+                  onPressed: () {
+                    _searchController.clear();
+                  },
+                  icon: const Icon(Icons.clear),
+                )
+                    : null,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                border: Border.all(color: selectionColor),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                _selectionStatusText(),
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: selectionColor,
+                ),
+              ),
             ),
             const SizedBox(height: 16),
             Align(
@@ -262,15 +381,21 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
             ),
             const SizedBox(height: 8),
             Expanded(
-              child: visiblePlayers.isEmpty
+              child: sportPlayers.isEmpty
                   ? const Center(
-                child: Text('Nenhum jogador cadastrado para este esporte'),
+                child:
+                Text('Nenhum jogador cadastrado para este esporte'),
+              )
+                  : visiblePlayers.isEmpty
+                  ? const Center(
+                child: Text('Nenhum jogador encontrado na busca'),
               )
                   : ListView.builder(
                 itemCount: visiblePlayers.length,
                 itemBuilder: (context, index) {
                   final player = visiblePlayers[index];
-                  final isSelected = _selectedPlayers.contains(player.id);
+                  final isSelected =
+                  _selectedPlayers.contains(player.id);
 
                   return CheckboxListTile(
                     value: isSelected,

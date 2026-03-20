@@ -33,8 +33,8 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: AppRoutes.result,
       builder: (context, state) {
-        final result = state.extra as TeamResult;
-        return ResultPage(result: result);
+        final results = state.extra as List<TeamResult>;
+        return ResultPage(results: results);
       },
     ),
     GoRoute(
