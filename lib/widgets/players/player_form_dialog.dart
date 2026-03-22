@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import '../../../data/datasources/player_local_datasource.dart';
 import '../../../data/models/player_model.dart';
 
 class PlayerFormDialog extends StatefulWidget {
-  final void Function(PlayerModel player) onSave;
+  final Future<void> Function(PlayerModel player) onSave;
   final PlayerModel? initialPlayer;
 
   const PlayerFormDialog({
@@ -25,6 +26,7 @@ class _PlayerFormDialogState extends State<PlayerFormDialog> {
 
   late String _selectedSport;
   late String _selectedPosition;
+  bool _isSaving = false;
 
   final Map<String, List<String>> _positionsBySport = {
     'Futsal': [
@@ -93,7 +95,9 @@ class _PlayerFormDialogState extends State<PlayerFormDialog> {
     });
   }
 
-  void _save() {
+  Future<void> _save() async {
+    if (_isSaving) return;
+
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -110,8 +114,32 @@ class _PlayerFormDialogState extends State<PlayerFormDialog> {
       sport: _selectedSport,
     );
 
-    widget.onSave(player);
-    Navigator.of(context).pop();
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      await widget.onSave(player);
+      if (!mounted) return;
+      Navigator.of(context).pop();
+    } on PlayerValidationException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Nao foi possivel salvar o jogador. Tente novamente.'),
+        ),
+      );
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _isSaving = false;
+      });
+    }
   }
 
   String? _validateName(String? value) {
@@ -133,10 +161,10 @@ class _PlayerFormDialogState extends State<PlayerFormDialog> {
 
     final parsed = int.tryParse(value.trim());
     if (parsed == null) {
-      return 'Digite um número válido';
+      return 'Digite um numero valido';
     }
 
-    if (parsed < 0 || parsed > 99) {
+    if (!PlayerLocalDataSource.isValidSkill(parsed)) {
       return 'Use um valor entre 0 e 99';
     }
 
@@ -185,7 +213,7 @@ class _PlayerFormDialogState extends State<PlayerFormDialog> {
                 controller: _staminaController,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
-                  labelText: 'Fôlego',
+                  labelText: 'Folego',
                 ),
                 validator: _validateAttribute,
               ),
@@ -198,33 +226,35 @@ class _PlayerFormDialogState extends State<PlayerFormDialog> {
                 items: _positionsBySport.keys
                     .map(
                       (sport) => DropdownMenuItem(
-                    value: sport,
-                    child: Text(sport),
-                  ),
-                )
+                        value: sport,
+                        child: Text(sport),
+                      ),
+                    )
                     .toList(),
-                onChanged: _onSportChanged,
+                onChanged: _isSaving ? null : _onSportChanged,
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 value: _selectedPosition,
                 decoration: const InputDecoration(
-                  labelText: 'Posição',
+                  labelText: 'Posicao',
                 ),
                 items: currentPositions
                     .map(
                       (position) => DropdownMenuItem(
-                    value: position,
-                    child: Text(position),
-                  ),
-                )
+                        value: position,
+                        child: Text(position),
+                      ),
+                    )
                     .toList(),
-                onChanged: (value) {
-                  if (value == null) return;
-                  setState(() {
-                    _selectedPosition = value;
-                  });
-                },
+                onChanged: _isSaving
+                    ? null
+                    : (value) {
+                        if (value == null) return;
+                        setState(() {
+                          _selectedPosition = value;
+                        });
+                      },
               ),
             ],
           ),
@@ -232,12 +262,12 @@ class _PlayerFormDialogState extends State<PlayerFormDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
           child: const Text('Cancelar'),
         ),
         ElevatedButton(
-          onPressed: _save,
-          child: Text(_isEditing ? 'Salvar alterações' : 'Salvar'),
+          onPressed: _isSaving ? null : _save,
+          child: Text(_isEditing ? 'Salvar alteracoes' : 'Salvar'),
         ),
       ],
     );
