@@ -1,6 +1,7 @@
 import 'package:go_router/go_router.dart';
 import '../../data/models/player_model.dart';
 import '../../domain/entities/team_result.dart';
+import '../../presentation/pages/help/help_page.dart';
 import '../../presentation/pages/home/home_page.dart';
 import '../../presentation/pages/match_setup/match_setup_page.dart';
 import '../../presentation/pages/players/players_page.dart';
@@ -13,6 +14,7 @@ class AppRoutes {
   static const matchSetup = '/match-setup';
   static const result = '/result';
   static const ranking = '/ranking';
+  static const help = '/help';
 }
 
 final GoRouter appRouter = GoRouter(
@@ -29,6 +31,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: AppRoutes.matchSetup,
       builder: (context, state) => const MatchSetupPage(),
+    ),
+    GoRoute(
+      path: AppRoutes.help,
+      builder: (context, state) => const HelpPage(),
     ),
     GoRoute(
       path: AppRoutes.result,

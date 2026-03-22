@@ -9,7 +9,14 @@ class HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Divide Time'),
+        title: const Text('Splitfoot'),
+        actions: [
+          IconButton(
+            onPressed: () => context.go(AppRoutes.help),
+            icon: const Icon(Icons.help_outline),
+            tooltip: 'Ajuda',
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -23,6 +30,12 @@ class HomePage extends StatelessWidget {
             ElevatedButton(
               onPressed: () => context.go(AppRoutes.matchSetup),
               child: const Text('Montar Partida'),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton.icon(
+              onPressed: () => context.go(AppRoutes.help),
+              icon: const Icon(Icons.help),
+              label: const Text('Ajuda'),
             ),
           ],
         ),
