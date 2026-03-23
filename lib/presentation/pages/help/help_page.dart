@@ -31,40 +31,83 @@ class HelpPage extends StatelessWidget {
               _SectionTitle('Sobre o app'),
               SizedBox(height: 8),
               Text(
-                'O Splitfoot ajuda a montar times equilibrados de forma rapida. '
-                'Primeiro, cadastre seus jogadores. Depois, em "Montar Partida", '
-                'escolha o esporte, selecione os atletas e defina quantos jogadores '
-                'cada time tera. Ao clicar em "Gerar Times", o app calcula as melhores combinacoes.',
+                'O Splitfoot ajuda você a montar times equilibrados de forma rápida. '
+                    'Primeiro, cadastre seus jogadores. Depois, em "Montar Partida", '
+                    'escolha o esporte, selecione os atletas e defina quantos jogadores '
+                    'cada time terá. Ao clicar em "Gerar Times", o app calcula as melhores combinações.',
               ),
+
               SizedBox(height: 24),
-              _SectionTitle('Tipos de divisao'),
+
+              _SectionTitle('Tipos de divisão'),
               SizedBox(height: 8),
-              _ModeTitle('Divisao por overall medio'),
+
+              _ModeTitle('Divisão por overall médio'),
               SizedBox(height: 4),
               Text(
-                'Busca equilibrar a media geral de habilidade entre os dois times.',
+                'Busca equilibrar a média geral de habilidade entre os dois times.',
               ),
+
               SizedBox(height: 12),
-              _ModeTitle('Divisao por atributos'),
+
+              _ModeTitle('Divisão por atributos'),
               SizedBox(height: 4),
               Text(
-                'Compara os jogadores por atributos para distribuir forças de forma mais detalhada.',
+                'Compara os times com base em múltiplos atributos, distribuindo as forças de forma mais detalhada.',
               ),
+
               SizedBox(height: 12),
-              _ModeTitle('Divisao por posicoes'),
+
+              _ModeTitle('Divisão por posições'),
               SizedBox(height: 4),
               Text(
-                'Respeita as posicoes dos jogadores e, ao mesmo tempo, tenta manter o equilibrio tecnico entre os times.',
+                'Respeita as posições dos jogadores e, ao mesmo tempo, tenta manter o equilíbrio técnico entre os times.',
               ),
+
               SizedBox(height: 24),
+
+              _SectionTitle('Atributos dos jogadores'),
+              SizedBox(height: 8),
+              Text(
+                'Os atributos devem ser definidos de 0 a 99 e representam as principais características de cada jogador. '
+                    'Preencher corretamente esses valores é essencial para gerar times mais equilibrados.',
+              ),
+
+              SizedBox(height: 12),
+
+              _ModeTitle('Ataque'),
+              SizedBox(height: 4),
+              Text(
+                'Considere a qualidade de chute, finalização, drible e outras características ofensivas do jogador.',
+              ),
+
+              SizedBox(height: 12),
+
+              _ModeTitle('Defesa'),
+              SizedBox(height: 4),
+              Text(
+                'Considere a qualidade de marcação, dividida, posicionamento e outras características defensivas.',
+              ),
+
+              SizedBox(height: 12),
+
+              _ModeTitle('Fôlego'),
+              SizedBox(height: 4),
+              Text(
+                'Considere a resistência física do jogador, incluindo fôlego, velocidade, capacidade de correr por longos períodos e outras características físicas.',
+              ),
+
+              SizedBox(height: 24),
+
               _SectionTitle('Dicas de uso'),
               SizedBox(height: 8),
               Text(
-                '- Use a busca para encontrar jogadores mais rapido.\n'
-                '- Preencha a posicao correta de cada atleta para melhorar a divisao por posicoes.\n'
-                '- Evite diferenca entre total selecionado e tamanho dos times, porque o app exige numeros exatos.\n'
-                '- Se nao aparecer resultado, revise quantidade de jogadores e modo escolhido.',
+                '- Use a busca para encontrar jogadores mais rapidamente.\n'
+                    '- Preencha corretamente a posição de cada atleta para melhorar a divisão por posições.\n'
+                    '- Evite diferenças entre o total de jogadores selecionados e o tamanho dos times, pois o app exige números exatos.\n'
+                    '- Caso não apareça nenhum resultado, revise a quantidade de jogadores e o modo escolhido.',
               ),
+
               SizedBox(height: 16),
             ],
           ),
