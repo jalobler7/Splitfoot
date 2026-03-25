@@ -70,7 +70,7 @@ A partir dessas informações, o app gera automaticamente times equilibrados, co
 ## Autor
 
 Desenvolvido por João Lobler  
-https://github.com/jalobler7
+
 
 ---
 
