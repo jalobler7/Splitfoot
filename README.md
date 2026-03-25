@@ -77,3 +77,16 @@ https://github.com/jalobler7
 ## Motivação
 
 O Splitfoot nasceu para resolver uma dor real: tornar a divisão de times mais justa e eliminar discussões antes das partidas.
+
+---
+
+## Screenshots 
+
+![JogadoresModalDeAdicionar](https://github.com/user-attachments/assets/262d90ec-5181-4a1b-b5e1-3e0b2aa3ef26)]
+![TelaJogadoresEscolherDivisap](https://github.com/user-attachments/assets/d436400c-b068-4770-ab4a-5c7eeb0249b4)
+![TelaJogadoresBusca](https://github.com/user-attachments/assets/da6e25d1-1b2a-423a-95e5-c6b616808f07)
+![TelaFiltro](https://github.com/user-attachments/assets/e131c4f9-affe-46c2-9b9e-5f8487b8d5ab)
+![TelaMontaTime](https://github.com/user-attachments/assets/cc1a88fb-7b8b-4f32-82a3-ec08e2509993)
+
+### Tela home na versão Web.
+![TelaHome](https://github.com/user-attachments/assets/8f2ea22d-3beb-48ad-a150-f646adc0e0db)
