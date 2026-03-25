@@ -1,18 +1,79 @@
-# divide_time
+# Splitfoot
 
-Divisor de times da galera
+Divida times de forma justa, rápida e inteligente.
 
-## Getting Started
+---
 
-This project is a starting point for a Flutter application.
+## Sobre o projeto
 
-A few resources to get you started if this is your first Flutter project:
+O **Splitfoot** é um aplicativo criado para resolver um problema comum em partidas amadoras: a divisão equilibrada de times.
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+Voltado para jogadores casuais, organizadores de peladas e times amadores, o app automatiza a criação de equipes com base em atributos simples e posições dos jogadores.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
-# divide_time-mobile
+---
+
+## Problema
+
+- Times desbalanceados prejudicam a partida
+- Discussões frequentes na divisão dos times
+- Dificuldade em avaliar o nível dos jogadores
+
+---
+
+## Solução
+
+O Splitfoot permite cadastrar jogadores com base em:
+
+- Posição
+- Ataque (0–99)
+- Defesa (0–99)
+- Fôlego (0–99)
+
+A partir dessas informações, o app gera automaticamente times equilibrados, considerando tanto os atributos quanto a distribuição por posição.
+
+---
+
+## Funcionalidades
+
+- Cadastro de jogadores por esporte
+- Suporte a futsal, futebol 7 e futebol 11
+- Sistema de balanceamento automático
+- Três algoritmos diferentes de divisão de times
+- Geração de múltiplas opções de escalação
+- Busca de jogadores por nome
+- Filtro por posição e esporte
+- Edição de jogadores
+- Validações:
+    - Atributos entre 0 e 99
+    - Nomes únicos por esporte
+
+---
+
+## Como usar
+
+1. Cadastre os jogadores
+2. Defina os atributos (ataque, defesa e fôlego)
+3. Escolha o esporte
+4. Selecione os jogadores para a partida
+5. Gere os times
+
+---
+
+## Tecnologias utilizadas
+
+- Flutter
+- Dart
+- Hive (persistência local)
+- Arquitetura em camadas (Data, UI, Services)
+
+---
+## Autor
+
+Desenvolvido por João Lobler  
+https://github.com/jalobler7
+
+---
+
+## Motivação
+
+O Splitfoot nasceu para resolver uma dor real: tornar a divisão de times mais justa e eliminar discussões antes das partidas.
