@@ -3,6 +3,10 @@
 Divida times de forma justa, rápida e inteligente.
 
 ---
+Versão web disponível em:
+https://splitfoot.netlify.app/
+
+---
 
 ## Sobre o projeto
 
