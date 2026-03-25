@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
+
 import '../../../app/routes/app_routes.dart';
+import '../../../core/utils/team_share_text_builder.dart';
 import '../../../data/models/player_model.dart';
 import '../../../domain/entities/team_result.dart';
 
@@ -18,6 +21,7 @@ class ResultPage extends StatefulWidget {
 
 class _ResultPageState extends State<ResultPage> {
   final PageController _pageController = PageController();
+  static const String _shareTitle = 'Times gerados pelo Splitfoot';
   int _currentIndex = 0;
 
   TeamResult get _currentResult => widget.results[_currentIndex];
@@ -30,19 +34,46 @@ class _ResultPageState extends State<ResultPage> {
     );
   }
 
+  Future<void> _shareCurrentResult() async {
+    final shareText = buildShareText(
+      teamA: _currentResult.teamA,
+      teamB: _currentResult.teamB,
+      title: _shareTitle,
+    );
+    final box = context.findRenderObject() as RenderBox?;
+
+    await SharePlus.instance.share(
+      ShareParams(
+        text: shareText,
+        title: _shareTitle,
+        subject: _shareTitle,
+        sharePositionOrigin: box == null
+            ? null
+            : box.localToGlobal(Offset.zero) & box.size,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final results = widget.results;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Melhores Escalações'),
+        title: const Text('Melhores Escala\u00E7\u00F5es'),
+        actions: [
+          IconButton(
+            onPressed: _shareCurrentResult,
+            icon: const Icon(Icons.share),
+            tooltip: 'Compartilhar times',
+          ),
+        ],
       ),
       body: Column(
         children: [
           const SizedBox(height: 12),
           Text(
-            'Opção ${_currentIndex + 1} de ${results.length}',
+            'Op\u00E7\u00E3o ${_currentIndex + 1} de ${results.length}',
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
@@ -61,7 +92,7 @@ class _ResultPageState extends State<ResultPage> {
                 final isSelected = index == _currentIndex;
 
                 return ChoiceChip(
-                  label: Text('Opção ${index + 1}'),
+                  label: Text('Op\u00E7\u00E3o ${index + 1}'),
                   selected: isSelected,
                   onSelected: (_) => _goToPage(index),
                 );
@@ -142,11 +173,11 @@ class _ResultPageState extends State<ResultPage> {
                                 'Defesa: ${result.teamADefenseTotal} x ${result.teamBDefenseTotal}',
                               ),
                               Text(
-                                'Fôlego: ${result.teamAStaminaTotal} x ${result.teamBStaminaTotal}',
+                                'F\u00F4lego: ${result.teamAStaminaTotal} x ${result.teamBStaminaTotal}',
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'Diferença total: ${result.attributeDifferenceScore}',
+                                'Diferen\u00E7a total: ${result.attributeDifferenceScore}',
                               ),
                             ],
                           ),
@@ -165,7 +196,7 @@ class _ResultPageState extends State<ResultPage> {
                             extra: allPlayers,
                           );
                         },
-                        child: const Text('Ver Ranking desta opção'),
+                        child: const Text('Ver Ranking desta op\u00E7\u00E3o'),
                       ),
                     ],
                   ),
@@ -199,7 +230,7 @@ class _TeamCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '$title - Média: ${average.toStringAsFixed(2)}',
+              '$title - M\u00E9dia: ${average.toStringAsFixed(2)}',
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -207,12 +238,10 @@ class _TeamCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             ...players.map(
-                  (player) => ListTile(
+              (player) => ListTile(
                 contentPadding: EdgeInsets.zero,
                 title: Text(player.name),
-                subtitle: Text(
-                  '${player.position} • Overall ${player.overall}',
-                ),
+                subtitle: Text('${player.position} - Overall ${player.overall}'),
               ),
             ),
           ],
