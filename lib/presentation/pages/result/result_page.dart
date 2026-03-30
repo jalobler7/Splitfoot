@@ -1,9 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../../../app/routes/app_routes.dart';
-import '../../../core/utils/team_share_text_builder.dart';
+import '../../../core/utils/team_share_action.dart';
 import '../../../data/models/player_model.dart';
 import '../../../domain/entities/team_result.dart';
 
@@ -34,23 +34,12 @@ class _ResultPageState extends State<ResultPage> {
     );
   }
 
-  Future<void> _shareCurrentResult() async {
-    final shareText = buildShareText(
+  Future<void> _handleShareOrCopyCurrentResult() async {
+    await handleShareOrCopy(
+      context,
       teamA: _currentResult.teamA,
       teamB: _currentResult.teamB,
       title: _shareTitle,
-    );
-    final box = context.findRenderObject() as RenderBox?;
-
-    await SharePlus.instance.share(
-      ShareParams(
-        text: shareText,
-        title: _shareTitle,
-        subject: _shareTitle,
-        sharePositionOrigin: box == null
-            ? null
-            : box.localToGlobal(Offset.zero) & box.size,
-      ),
     );
   }
 
@@ -62,10 +51,10 @@ class _ResultPageState extends State<ResultPage> {
       appBar: AppBar(
         title: const Text('Melhores Escala\u00E7\u00F5es'),
         actions: [
-          IconButton(
-            onPressed: _shareCurrentResult,
-            icon: const Icon(Icons.share),
-            tooltip: 'Compartilhar times',
+          TextButton.icon(
+            onPressed: _handleShareOrCopyCurrentResult,
+            icon: Icon(kIsWeb ? Icons.copy : Icons.share),
+            label: Text(kIsWeb ? 'Copiar' : 'Compartilhar'),
           ),
         ],
       ),
