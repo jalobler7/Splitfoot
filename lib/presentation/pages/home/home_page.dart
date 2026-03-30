@@ -38,6 +38,11 @@ class HomePage extends StatelessWidget {
                       child: const Text('Montar Partida'),
                     ),
                     const SizedBox(height: 12),
+                    ElevatedButton(
+                      onPressed: () => context.go(AppRoutes.rankings),
+                      child: const Text('Rankings'),
+                    ),
+                    const SizedBox(height: 12),
                     ElevatedButton.icon(
                       onPressed: () => context.go(AppRoutes.help),
                       icon: const Icon(Icons.help),

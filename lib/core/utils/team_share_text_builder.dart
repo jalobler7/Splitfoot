@@ -1,5 +1,8 @@
 import '../../data/models/player_model.dart';
 
+const String _appShareCallToAction =
+    'Monte seu time voc\u00EA tamb\u00E9m:https://splitfoot.netlify.app';
+
 String buildShareText({
   required List<PlayerModel> teamA,
   required List<PlayerModel> teamB,
@@ -13,6 +16,7 @@ String buildShareText({
 
   sections.add(_buildTeamSection('Time A', teamA));
   sections.add(_buildTeamSection('Time B', teamB));
+  sections.add(_appShareCallToAction);
 
   return sections.join('\n\n');
 }

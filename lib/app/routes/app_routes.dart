@@ -6,6 +6,7 @@ import '../../presentation/pages/home/home_page.dart';
 import '../../presentation/pages/match_setup/match_setup_page.dart';
 import '../../presentation/pages/players/players_page.dart';
 import '../../presentation/pages/ranking/ranking_page.dart';
+import '../../presentation/pages/rankings/rankings_page.dart';
 import '../../presentation/pages/result/result_page.dart';
 
 class AppRoutes {
@@ -14,6 +15,7 @@ class AppRoutes {
   static const matchSetup = '/match-setup';
   static const result = '/result';
   static const ranking = '/ranking';
+  static const rankings = '/rankings';
   static const help = '/help';
 }
 
@@ -49,6 +51,10 @@ final GoRouter appRouter = GoRouter(
         final players = state.extra as List<PlayerModel>;
         return RankingPage(players: players);
       },
+    ),
+    GoRoute(
+      path: AppRoutes.rankings,
+      builder: (context, state) => const RankingsPage(),
     ),
   ],
 );
