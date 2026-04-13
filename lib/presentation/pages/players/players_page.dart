@@ -16,6 +16,7 @@ class PlayersPage extends StatefulWidget {
 class _PlayersPageState extends State<PlayersPage> {
   final PlayerLocalDataSource _dataSource = PlayerLocalDataSource();
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
 
   List<PlayerModel> _allPlayers = [];
   List<PlayerModel> _filteredPlayers = [];
@@ -23,6 +24,9 @@ class _PlayersPageState extends State<PlayersPage> {
   String _searchQuery = '';
   final Set<String> _selectedPositions = {};
   String? _selectedSport;
+  int _currentPage = 0;
+  bool _isHeaderCompact = false;
+  static const int _pageSize = 5;
 
   static const List<String> _sportOptions = [
     'Futsal',
@@ -44,6 +48,7 @@ class _PlayersPageState extends State<PlayersPage> {
   void initState() {
     super.initState();
     _searchController.addListener(_onSearchChanged);
+    _scrollController.addListener(_onScroll);
     _loadPlayers();
   }
 
@@ -51,31 +56,40 @@ class _PlayersPageState extends State<PlayersPage> {
   void dispose() {
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    final shouldCompact = _scrollController.hasClients && _scrollController.offset > 24;
+    if (shouldCompact == _isHeaderCompact) return;
+
+    setState(() {
+      _isHeaderCompact = shouldCompact;
+    });
   }
 
   void _onSearchChanged() {
     final query = _searchController.text.trim().toLowerCase();
     if (query == _searchQuery) return;
 
-    setState(() {
+    _updateFilteredPlayers(() {
       _searchQuery = query;
-      _filteredPlayers = _applyFilters();
     });
   }
 
   void _loadPlayers() {
     final players = _dataSource.getAllPlayers();
 
-    setState(() {
+    _updateFilteredPlayers(() {
       _allPlayers = players;
       _syncSelectedPositionsWithAvailable();
-      _filteredPlayers = _applyFilters();
     });
   }
 
   List<PlayerModel> _applyFilters() {
-    return _allPlayers.where((player) {
+    final filtered = _allPlayers.where((player) {
       final matchesName =
           _searchQuery.isEmpty || player.name.toLowerCase().contains(_searchQuery);
       final matchesSport =
@@ -85,6 +99,20 @@ class _PlayersPageState extends State<PlayersPage> {
 
       return matchesName && matchesSport && matchesPosition;
     }).toList();
+
+    filtered.sort(
+      (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+    );
+
+    return filtered;
+  }
+
+  void _updateFilteredPlayers([VoidCallback? updates]) {
+    setState(() {
+      updates?.call();
+      _filteredPlayers = _applyFilters();
+      _currentPage = 0;
+    });
   }
 
   void _syncSelectedPositionsWithAvailable() {
@@ -95,22 +123,57 @@ class _PlayersPageState extends State<PlayersPage> {
   void _onSportChanged(String? sport) {
     if (_selectedSport == sport) return;
 
-    setState(() {
+    _updateFilteredPlayers(() {
       _selectedSport = sport;
       _syncSelectedPositionsWithAvailable();
-      _filteredPlayers = _applyFilters();
     });
   }
 
   void _togglePositionFilter(String position) {
-    setState(() {
+    _updateFilteredPlayers(() {
       if (_selectedPositions.contains(position)) {
         _selectedPositions.remove(position);
       } else {
         _selectedPositions.add(position);
       }
-      _filteredPlayers = _applyFilters();
     });
+  }
+
+  int get _totalPages {
+    if (_filteredPlayers.isEmpty) return 1;
+    return (_filteredPlayers.length / _pageSize).ceil();
+  }
+
+  List<PlayerModel> get _paginatedPlayers {
+    if (_filteredPlayers.isEmpty) return const [];
+    final start = _currentPage * _pageSize;
+    final end = (start + _pageSize).clamp(0, _filteredPlayers.length);
+    return _filteredPlayers.sublist(start, end);
+  }
+
+  void _goToPreviousPage() {
+    if (_currentPage == 0) return;
+    setState(() {
+      _currentPage -= 1;
+    });
+    _scrollListToTop();
+  }
+
+  void _goToNextPage() {
+    if (_currentPage >= _totalPages - 1) return;
+    setState(() {
+      _currentPage += 1;
+    });
+    _scrollListToTop();
+  }
+
+  void _scrollListToTop() {
+    if (!_scrollController.hasClients) return;
+    _scrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 240),
+      curve: Curves.easeOutCubic,
+    );
   }
 
   void _openAddPlayerDialog() {
@@ -186,41 +249,6 @@ class _PlayersPageState extends State<PlayersPage> {
 
     return Scaffold(
       extendBody: true,
-      appBar: AppBar(
-        toolbarHeight: 72,
-        titleSpacing: 8,
-        leadingWidth: 68,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 16),
-          child: _TopIconButton(
-            icon: Icons.arrow_back_rounded,
-            onTap: () => context.go(AppRoutes.home),
-          ),
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'Jogadores',
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontSize: 28,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
-                color: Colors.white,
-              ),
-            ),
-            Text(
-              '${_filteredPlayers.length} vis\u00EDveis',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: Colors.white.withValues(alpha: 0.54),
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
       floatingActionButton: _PremiumFab(onTap: _openAddPlayerDialog),
       body: Container(
         decoration: const BoxDecoration(
@@ -235,51 +263,57 @@ class _PlayersPageState extends State<PlayersPage> {
           ),
         ),
         child: SafeArea(
-          top: false,
+          top: true,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: Column(
               children: [
-                _SearchField(
-                  controller: _searchController,
-                  hasQuery: _searchQuery.isNotEmpty,
-                  onClear: () => _searchController.clear(),
-                ),
-                const SizedBox(height: 14),
-                _SportDropdown(
-                  value: _selectedSport,
-                  items: _sportOptions,
-                  onChanged: _onSportChanged,
-                ),
-                const SizedBox(height: 16),
-                _SectionLabel(
-                  title: 'Posi\u00E7\u00F5es',
-                  subtitle: _selectedPositions.isEmpty
+                _PlayersHeader(
+                  theme: theme,
+                  filteredCount: _filteredPlayers.length,
+                  isCompact: _isHeaderCompact,
+                  searchField: _SearchField(
+                    controller: _searchController,
+                    hasQuery: _searchQuery.isNotEmpty,
+                    onClear: () => _searchController.clear(),
+                    compact: _isHeaderCompact,
+                  ),
+                  sportDropdown: _SportDropdown(
+                    value: _selectedSport,
+                    items: _sportOptions,
+                    onChanged: _onSportChanged,
+                    compact: _isHeaderCompact,
+                  ),
+                  positionsContent: Align(
+                    alignment: Alignment.centerLeft,
+                    child: _availablePositions.isEmpty
+                        ? const _InlineNotice(
+                            text: 'Nenhuma posi\u00E7\u00E3o dispon\u00EDvel para o filtro.',
+                          )
+                        : Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: _availablePositions.map((position) {
+                              final isSelected =
+                                  _selectedPositions.contains(position);
+                              return _PositionChip(
+                                label: position,
+                                selected: isSelected,
+                                onTap: () => _togglePositionFilter(position),
+                              );
+                            }).toList(),
+                          ),
+                  ),
+                  positionSubtitle: _selectedPositions.isEmpty
                       ? 'Todas as posi\u00E7\u00F5es'
                       : '${_selectedPositions.length} filtro(s) ativo(s)',
+                  onBack: () => context.go(AppRoutes.home),
                 ),
-                const SizedBox(height: 10),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: _availablePositions.isEmpty
-                      ? const _InlineNotice(
-                          text: 'Nenhuma posi\u00E7\u00E3o dispon\u00EDvel para o filtro.',
-                        )
-                      : Wrap(
-                          spacing: 10,
-                          runSpacing: 10,
-                          children: _availablePositions.map((position) {
-                            final isSelected =
-                                _selectedPositions.contains(position);
-                            return _PositionChip(
-                              label: position,
-                              selected: isSelected,
-                              onTap: () => _togglePositionFilter(position),
-                            );
-                          }).toList(),
-                        ),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOutCubic,
+                  height: _isHeaderCompact ? 12 : 18,
                 ),
-                const SizedBox(height: 18),
                 Expanded(
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 220),
@@ -317,11 +351,24 @@ class _PlayersPageState extends State<PlayersPage> {
 
     return ListView.separated(
       key: const ValueKey('player-list'),
+      controller: _scrollController,
       padding: const EdgeInsets.only(bottom: 108),
-      itemCount: _filteredPlayers.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 14),
+      itemCount: _paginatedPlayers.length + 1,
+      separatorBuilder: (_, index) =>
+          index == _paginatedPlayers.length - 1 ? const SizedBox(height: 18) : const SizedBox(height: 14),
       itemBuilder: (context, index) {
-        final player = _filteredPlayers[index];
+        if (index == _paginatedPlayers.length) {
+          return _PaginationBar(
+            currentPage: _currentPage + 1,
+            totalPages: _totalPages,
+            canGoBack: _currentPage > 0,
+            canGoForward: _currentPage < _totalPages - 1,
+            onPrevious: _goToPreviousPage,
+            onNext: _goToNextPage,
+          );
+        }
+
+        final player = _paginatedPlayers[index];
         return _PlayerCard(
           player: player,
           onEdit: () => _openEditPlayerDialog(player),
@@ -347,16 +394,169 @@ class _TopIconButton extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
         child: Ink(
-          width: 46,
-          height: 46,
+          width: 50,
+          height: 50,
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.04),
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
           ),
-          child: Icon(icon, color: Colors.white, size: 22),
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.only(left: 1),
+              child: Icon(icon, color: Colors.white, size: 22),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PlayersHeader extends StatelessWidget {
+  const _PlayersHeader({
+    required this.theme,
+    required this.filteredCount,
+    required this.isCompact,
+    required this.searchField,
+    required this.sportDropdown,
+    required this.positionsContent,
+    required this.positionSubtitle,
+    required this.onBack,
+  });
+
+  final ThemeData theme;
+  final int filteredCount;
+  final bool isCompact;
+  final Widget searchField;
+  final Widget sportDropdown;
+  final Widget positionsContent;
+  final String positionSubtitle;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      padding: EdgeInsets.fromLTRB(16, isCompact ? 14 : 18, 16, isCompact ? 14 : 18),
+      decoration: BoxDecoration(
+        color: const Color(0xFF12191A).withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x22000000),
+            blurRadius: 22,
+            offset: Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _TopIconButton(
+                icon: Icons.arrow_back_rounded,
+                onTap: onBack,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Jogadores',
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontSize: isCompact ? 24 : 28,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
+                        color: Colors.white,
+                        height: 1,
+                      ),
+                    ),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 180),
+                      child: isCompact
+                          ? const SizedBox.shrink()
+                          : Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text(
+                                '$filteredCount visiveis',
+                                key: ValueKey(filteredCount),
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: Colors.white.withValues(alpha: 0.54),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isCompact) _CompactCounterBadge(count: filteredCount),
+            ],
+          ),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            height: isCompact ? 12 : 18,
+          ),
+          searchField,
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            height: isCompact ? 10 : 14,
+          ),
+          sportDropdown,
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            height: isCompact ? 12 : 16,
+          ),
+          _SectionLabel(
+            title: 'Posicoes',
+            subtitle: positionSubtitle,
+            compact: isCompact,
+          ),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            height: isCompact ? 8 : 10,
+          ),
+          positionsContent,
+        ],
+      ),
+    );
+  }
+}
+
+class _CompactCounterBadge extends StatelessWidget {
+  const _CompactCounterBadge({
+    required this.count,
+  });
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.20)),
+      ),
+      child: Text(
+        '$count',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
         ),
       ),
     );
@@ -368,11 +568,13 @@ class _SearchField extends StatelessWidget {
     required this.controller,
     required this.hasQuery,
     required this.onClear,
+    required this.compact,
   });
 
   final TextEditingController controller;
   final bool hasQuery;
   final VoidCallback onClear;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -411,7 +613,7 @@ class _SearchField extends StatelessWidget {
             : null,
         filled: true,
         fillColor: const Color(0xFF141A1D),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+        contentPadding: EdgeInsets.symmetric(horizontal: 18, vertical: compact ? 14 : 18),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(22),
           borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
@@ -433,11 +635,13 @@ class _SportDropdown extends StatelessWidget {
     required this.value,
     required this.items,
     required this.onChanged,
+    required this.compact,
   });
 
   final String? value;
   final List<String> items;
   final ValueChanged<String?> onChanged;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -467,7 +671,7 @@ class _SportDropdown extends StatelessWidget {
         ),
         filled: true,
         fillColor: const Color(0xFF141A1D),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+        contentPadding: EdgeInsets.symmetric(horizontal: 18, vertical: compact ? 14 : 18),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(22),
           borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
@@ -501,10 +705,12 @@ class _SectionLabel extends StatelessWidget {
   const _SectionLabel({
     required this.title,
     required this.subtitle,
+    this.compact = false,
   });
 
   final String title;
   final String subtitle;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -516,22 +722,24 @@ class _SectionLabel extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
-                  fontSize: 16,
+                  fontSize: compact ? 14 : 16,
                   fontWeight: FontWeight.w700,
                   letterSpacing: -0.2,
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.52),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
+              if (!compact) ...[
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.52),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
@@ -578,6 +786,7 @@ class _PositionChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final style = positionVisualStyle(label);
     return _PressableScale(
       onTap: onTap,
       borderRadius: BorderRadius.circular(999),
@@ -587,24 +796,38 @@ class _PositionChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
         decoration: BoxDecoration(
           color: selected
-              ? AppColors.primary.withValues(alpha: 0.18)
+              ? style.background
               : Colors.white.withValues(alpha: 0.03),
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: selected
-                ? AppColors.primary.withValues(alpha: 0.55)
+                ? style.border
                 : Colors.white.withValues(alpha: 0.08),
           ),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: selected
-                ? AppColors.primary
-                : Colors.white.withValues(alpha: 0.76),
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: style.foreground,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: selected
+                    ? style.foreground
+                    : Colors.white.withValues(alpha: 0.76),
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -678,6 +901,7 @@ class _PlayerCard extends StatelessWidget {
                           _MetaPill(
                             icon: Icons.shield_outlined,
                             label: player.position,
+                            isPosition: true,
                           ),
                         ],
                       ),
@@ -805,29 +1029,34 @@ class _MetaPill extends StatelessWidget {
   const _MetaPill({
     required this.icon,
     required this.label,
+    this.isPosition = false,
   });
 
   final IconData icon;
   final String label;
+  final bool isPosition;
 
   @override
   Widget build(BuildContext context) {
+    final style = isPosition ? positionVisualStyle(label) : null;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
+        color: isPosition ? style!.background : Colors.white.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        border: Border.all(
+          color: isPosition ? style!.border : Colors.white.withValues(alpha: 0.06),
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: AppColors.primary),
+          Icon(icon, size: 14, color: isPosition ? style!.foreground : AppColors.primary),
           const SizedBox(width: 6),
           Text(
             label,
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.78),
+              color: isPosition ? style!.foreground : Colors.white.withValues(alpha: 0.78),
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -1017,6 +1246,177 @@ class _EmptyState extends StatelessWidget {
       ),
     );
   }
+}
+
+class _PaginationBar extends StatelessWidget {
+  const _PaginationBar({
+    required this.currentPage,
+    required this.totalPages,
+    required this.canGoBack,
+    required this.canGoForward,
+    required this.onPrevious,
+    required this.onNext,
+  });
+
+  final int currentPage;
+  final int totalPages;
+  final bool canGoBack;
+  final bool canGoForward;
+  final VoidCallback onPrevious;
+  final VoidCallback onNext;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF14191B),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _PaginationButton(
+              icon: Icons.arrow_back_ios_new_rounded,
+              label: 'Anterior',
+              enabled: canGoBack,
+              onTap: onPrevious,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Text(
+              'Pagina $currentPage de $totalPages',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Expanded(
+            child: _PaginationButton(
+              icon: Icons.arrow_forward_ios_rounded,
+              label: 'Proxima',
+              enabled: canGoForward,
+              onTap: onNext,
+              alignEnd: true,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PaginationButton extends StatelessWidget {
+  const _PaginationButton({
+    required this.icon,
+    required this.label,
+    required this.enabled,
+    required this.onTap,
+    this.alignEnd = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool enabled;
+  final VoidCallback onTap;
+  final bool alignEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: enabled ? 1 : 0.42,
+      child: _PressableScale(
+        onTap: enabled ? onTap : () {},
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.04),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          ),
+          child: Row(
+            mainAxisAlignment:
+                alignEnd ? MainAxisAlignment.end : MainAxisAlignment.start,
+            children: [
+              if (!alignEnd) ...[
+                Icon(icon, color: Colors.white, size: 16),
+                const SizedBox(width: 8),
+              ],
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              if (alignEnd) ...[
+                const SizedBox(width: 8),
+                Icon(icon, color: Colors.white, size: 16),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PositionVisualStyle {
+  const _PositionVisualStyle({
+    required this.foreground,
+    required this.background,
+    required this.border,
+  });
+
+  final Color foreground;
+  final Color background;
+  final Color border;
+}
+
+_PositionVisualStyle positionVisualStyle(String position) {
+  final normalized = position.toLowerCase();
+
+  if (normalized.contains('fixo') || normalized.contains('zagueiro')) {
+    return const _PositionVisualStyle(
+      foreground: Color(0xFF63B3FF),
+      background: Color(0x1A63B3FF),
+      border: Color(0x5063B3FF),
+    );
+  }
+
+  if (normalized.contains('ala') ||
+      normalized.contains('lateral') ||
+      normalized.contains('meia') ||
+      normalized.contains('volante')) {
+    return const _PositionVisualStyle(
+      foreground: Color(0xFF39D98A),
+      background: Color(0x1839D98A),
+      border: Color(0x5039D98A),
+    );
+  }
+
+  if (normalized.contains('pivo') ||
+      normalized.contains('atacante') ||
+      normalized.contains('ponta') ||
+      normalized.contains('centroavante')) {
+    return const _PositionVisualStyle(
+      foreground: Color(0xFFFF8A4C),
+      background: Color(0x1AFF8A4C),
+      border: Color(0x50FF8A4C),
+    );
+  }
+
+  return const _PositionVisualStyle(
+    foreground: AppColors.primary,
+    background: Color(0x1A22C55E),
+    border: Color(0x5022C55E),
+  );
 }
 
 class _PressableScale extends StatefulWidget {
