@@ -8,6 +8,7 @@ import '../../../app/routes/app_routes.dart';
 import '../../../data/datasources/player_local_datasource.dart';
 import '../../../data/models/player_model.dart';
 import '../../../domain/services/ranking_service.dart';
+import '../../../widgets/player_visuals.dart';
 
 class RankingsPage extends StatefulWidget {
   const RankingsPage({super.key});
@@ -835,49 +836,102 @@ class _PodiumSection extends StatelessWidget {
     final first = players.isNotEmpty ? players[0] : null;
     final third = players.length > 2 ? players[2] : null;
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Expanded(
-          child: second == null
-              ? const SizedBox.shrink()
-              : _PodiumCard(
-                  rank: 2,
-                  player: second,
-                  categoryId: categoryId,
-                  height: 174,
-                  accentColor: const Color(0xFFC0C7D1),
-                  icon: Icons.workspace_premium_rounded,
-                ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: first == null
-              ? const SizedBox.shrink()
-              : _PodiumCard(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 640;
+
+        if (isCompact) {
+          return Column(
+            children: [
+              if (first != null)
+                _PodiumCard(
                   rank: 1,
                   player: first,
                   categoryId: categoryId,
-                  height: 214,
                   accentColor: const Color(0xFFF2C94C),
                   icon: Icons.emoji_events_rounded,
                   highlight: true,
+                  compact: true,
                 ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: third == null
-              ? const SizedBox.shrink()
-              : _PodiumCard(
-                  rank: 3,
-                  player: third,
-                  categoryId: categoryId,
-                  height: 162,
-                  accentColor: const Color(0xFFD28B61),
-                  icon: Icons.military_tech_rounded,
+              if (first != null && (second != null || third != null))
+                const SizedBox(height: 12),
+              if (second != null || third != null)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: second == null
+                          ? const SizedBox.shrink()
+                          : _PodiumCard(
+                              rank: 2,
+                              player: second,
+                              categoryId: categoryId,
+                              accentColor: const Color(0xFFC0C7D1),
+                              icon: Icons.workspace_premium_rounded,
+                              compact: true,
+                            ),
+                    ),
+                    if (second != null && third != null) const SizedBox(width: 12),
+                    Expanded(
+                      child: third == null
+                          ? const SizedBox.shrink()
+                          : _PodiumCard(
+                              rank: 3,
+                              player: third,
+                              categoryId: categoryId,
+                              accentColor: const Color(0xFFD28B61),
+                              icon: Icons.military_tech_rounded,
+                              compact: true,
+                            ),
+                    ),
+                  ],
                 ),
-        ),
-      ],
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Expanded(
+              child: second == null
+                  ? const SizedBox.shrink()
+                  : _PodiumCard(
+                      rank: 2,
+                      player: second,
+                      categoryId: categoryId,
+                      accentColor: const Color(0xFFC0C7D1),
+                      icon: Icons.workspace_premium_rounded,
+                    ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: first == null
+                  ? const SizedBox.shrink()
+                  : _PodiumCard(
+                      rank: 1,
+                      player: first,
+                      categoryId: categoryId,
+                      accentColor: const Color(0xFFF2C94C),
+                      icon: Icons.emoji_events_rounded,
+                      highlight: true,
+                    ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: third == null
+                  ? const SizedBox.shrink()
+                  : _PodiumCard(
+                      rank: 3,
+                      player: third,
+                      categoryId: categoryId,
+                      accentColor: const Color(0xFFD28B61),
+                      icon: Icons.military_tech_rounded,
+                    ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -887,107 +941,117 @@ class _PodiumCard extends StatelessWidget {
     required this.rank,
     required this.player,
     required this.categoryId,
-    required this.height,
     required this.accentColor,
     required this.icon,
     this.highlight = false,
+    this.compact = false,
   });
 
   final int rank;
   final PlayerModel player;
   final String categoryId;
-  final double height;
   final Color accentColor;
   final IconData icon;
   final bool highlight;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 260),
-      curve: Curves.easeOutCubic,
-      height: height,
-      padding: EdgeInsets.fromLTRB(14, highlight ? 18 : 14, 14, 14),
+    return Container(
+      constraints: BoxConstraints(minHeight: compact ? 0 : (highlight ? 264 : 236)),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(26),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: highlight
-              ? [
-                  AppColors.primary.withValues(alpha: 0.22),
-                  const Color(0xFF162118),
-                ]
-              : [
-                  accentColor.withValues(alpha: 0.14),
-                  const Color(0xFF171C1E),
-                ],
+          colors: [
+            highlight
+                ? AppColors.primary.withValues(alpha: 0.16)
+                : accentColor.withValues(alpha: 0.14),
+            const Color(0xFF111618),
+          ],
         ),
         border: Border.all(
           color: highlight
-              ? AppColors.primary.withValues(alpha: 0.30)
+              ? AppColors.primary.withValues(alpha: 0.22)
               : Colors.white.withValues(alpha: 0.08),
         ),
-        boxShadow: highlight
-            ? [
-                BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.20),
-                  blurRadius: 26,
-                  offset: const Offset(0, 14),
-                ),
-              ]
-            : null,
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: accentColor.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Icon(icon, color: accentColor, size: 22),
-          ),
-          const SizedBox(height: 14),
-          _AvatarBadge(label: _playerInitials(player.name), size: highlight ? 60 : 52),
-          const SizedBox(height: 12),
-          Text(
-            player.name,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: highlight ? 17 : 15,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.3,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            player.position,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.68),
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 12),
-          _ScoreBadge(label: _scoreLabel(player, categoryId), highlight: highlight),
-          const SizedBox(height: 10),
-          Text(
-            '$rankº lugar',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.76),
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x22000000),
+            blurRadius: 22,
+            offset: Offset(0, 12),
           ),
         ],
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(compact ? 14 : 18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _RankingOverallBadge(
+                  value: player.overall,
+                  size: compact ? 58 : (highlight ? 68 : 62),
+                ),
+                SizedBox(width: compact ? 10 : 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _RankingPlacementPill(
+                            rank: rank,
+                            accentColor: accentColor,
+                            icon: icon,
+                          ),
+                          _ScoreBadge(
+                            label: _scoreLabel(player, categoryId),
+                            highlight: highlight,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        player.name,
+                        maxLines: compact ? 2 : 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: compact ? 15 : 18,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _RankingMetaPill(
+                            icon: Icons.sports_soccer_rounded,
+                            label: player.sport,
+                          ),
+                          _RankingMetaPill(
+                            icon: Icons.shield_outlined,
+                            label: player.position,
+                            isPosition: true,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1006,80 +1070,75 @@ class _RankingListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = rank <= 5 ? AppColors.primary.withValues(alpha: 0.18) : Colors.white.withValues(alpha: 0.04);
-
-    return _PressableScale(
-      borderRadius: BorderRadius.circular(22),
-      onTap: () {},
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: accent,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(26),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            rank <= 5
+                ? AppColors.primary.withValues(alpha: 0.10)
+                : const Color(0xFF161C1F),
+            const Color(0xFF111618),
+          ],
         ),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x22000000),
+            blurRadius: 22,
+            offset: Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                '$rank',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-            const SizedBox(width: 14),
-            _AvatarBadge(label: _playerInitials(player.name), size: 46),
+            _RankingOverallBadge(value: player.overall),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _RankingPlacementPill(rank: rank),
+                      _ScoreBadge(label: _scoreLabel(player, categoryId)),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
                   Text(
                     player.name,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 16,
+                      fontSize: 18,
                       fontWeight: FontWeight.w800,
-                      letterSpacing: -0.2,
+                      letterSpacing: -0.3,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    player.position,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.68),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _RankingMetaPill(
+                        icon: Icons.sports_soccer_rounded,
+                        label: player.sport,
+                      ),
+                      _RankingMetaPill(
+                        icon: Icons.shield_outlined,
+                        label: player.position,
+                        isPosition: true,
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                _ScoreBadge(label: _scoreLabel(player, categoryId)),
-                const SizedBox(height: 8),
-                Text(
-                  '${player.overall} OVR',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.62),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
             ),
           ],
         ),
@@ -1088,17 +1147,19 @@ class _RankingListItem extends StatelessWidget {
   }
 }
 
-class _AvatarBadge extends StatelessWidget {
-  const _AvatarBadge({
-    required this.label,
-    required this.size,
+class _RankingOverallBadge extends StatelessWidget {
+  const _RankingOverallBadge({
+    required this.value,
+    this.size = 68,
   });
 
-  final String label;
+  final int value;
   final double size;
 
   @override
   Widget build(BuildContext context) {
+    final innerSize = size - 12;
+
     return Container(
       width: size,
       height: size,
@@ -1108,21 +1169,141 @@ class _AvatarBadge extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0xFF1E2A22),
-            Color(0xFF111619),
+            Color(0xFF35D76C),
+            Color(0xFF178C46),
           ],
         ),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.24),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
-      alignment: Alignment.center,
-      child: Text(
-        label,
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: size * 0.28,
-          fontWeight: FontWeight.w800,
-          letterSpacing: -0.2,
+      child: Center(
+        child: Container(
+          width: innerSize,
+          height: innerSize,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.black.withValues(alpha: 0.12),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.20)),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'OVR',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: size * 0.15,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8,
+                ),
+              ),
+              Text(
+                '$value',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: size * 0.29,
+                  fontWeight: FontWeight.w800,
+                  height: 1,
+                ),
+              ),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+}
+
+class _RankingPlacementPill extends StatelessWidget {
+  const _RankingPlacementPill({
+    required this.rank,
+    this.accentColor,
+    this.icon,
+  });
+
+  final int rank;
+  final Color? accentColor;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = accentColor ?? Colors.white;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.24)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 6),
+          ],
+          Text(
+            '$rankº lugar',
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RankingMetaPill extends StatelessWidget {
+  const _RankingMetaPill({
+    required this.icon,
+    required this.label,
+    this.isPosition = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool isPosition;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = isPosition ? positionVisualStyle(label) : null;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: isPosition ? style!.background : Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: isPosition ? style!.border : Colors.white.withValues(alpha: 0.06),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 14,
+            color: isPosition ? style!.foreground : AppColors.primary,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: isPosition ? style!.foreground : Colors.white.withValues(alpha: 0.78),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1427,14 +1608,4 @@ String _scoreLabel(PlayerModel player, String categoryId) {
     'goalkeeper' => '${math.max(player.defense, player.overall)} GK',
     _ => '${player.overall} OVR',
   };
-}
-
-String _playerInitials(String name) {
-  final parts = name.trim().split(RegExp(r'\s+')).where((part) => part.isNotEmpty).toList();
-  if (parts.isEmpty) return '--';
-  if (parts.length == 1) {
-    return parts.first.substring(0, math.min(2, parts.first.length)).toUpperCase();
-  }
-
-  return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
 }
