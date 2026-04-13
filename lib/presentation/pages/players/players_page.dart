@@ -1275,37 +1275,91 @@ class _PaginationBar extends StatelessWidget {
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _PaginationButton(
-              icon: Icons.arrow_back_ios_new_rounded,
-              label: 'Anterior',
-              enabled: canGoBack,
-              onTap: onPrevious,
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Text(
-              'Pagina $currentPage de $totalPages',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isCompact = constraints.maxWidth < 360;
+
+          if (isCompact) {
+            return Column(
+              children: [
+                Text(
+                  'Pagina $currentPage de $totalPages',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _PaginationButton(
+                        icon: Icons.arrow_back_ios_new_rounded,
+                        label: 'Anterior',
+                        enabled: canGoBack,
+                        onTap: onPrevious,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _PaginationButton(
+                        icon: Icons.arrow_forward_ios_rounded,
+                        label: 'Proxima',
+                        enabled: canGoForward,
+                        onTap: onNext,
+                        alignEnd: true,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          }
+
+          return Row(
+            children: [
+              Expanded(
+                flex: 3,
+                child: _PaginationButton(
+                  icon: Icons.arrow_back_ios_new_rounded,
+                  label: 'Anterior',
+                  enabled: canGoBack,
+                  onTap: onPrevious,
+                ),
               ),
-            ),
-          ),
-          Expanded(
-            child: _PaginationButton(
-              icon: Icons.arrow_forward_ios_rounded,
-              label: 'Proxima',
-              enabled: canGoForward,
-              onTap: onNext,
-              alignEnd: true,
-            ),
-          ),
-        ],
+              Expanded(
+                flex: 2,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      'Pagina $currentPage de $totalPages',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                flex: 3,
+                child: _PaginationButton(
+                  icon: Icons.arrow_forward_ios_rounded,
+                  label: 'Proxima',
+                  enabled: canGoForward,
+                  onTap: onNext,
+                  alignEnd: true,
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

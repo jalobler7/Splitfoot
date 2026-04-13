@@ -871,7 +871,7 @@ class _PodiumSection extends StatelessWidget {
                               compact: true,
                             ),
                     ),
-                    if (second != null && third != null) const SizedBox(width: 12),
+                    if (second != null && third != null) const SizedBox(width: 10),
                     Expanded(
                       child: third == null
                           ? const SizedBox.shrink()
@@ -904,7 +904,7 @@ class _PodiumSection extends StatelessWidget {
                       icon: Icons.workspace_premium_rounded,
                     ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(
               child: first == null
                   ? const SizedBox.shrink()
@@ -917,7 +917,7 @@ class _PodiumSection extends StatelessWidget {
                       highlight: true,
                     ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(
               child: third == null
                   ? const SizedBox.shrink()
@@ -985,7 +985,7 @@ class _PodiumCard extends StatelessWidget {
         ],
       ),
       child: Padding(
-        padding: EdgeInsets.all(compact ? 14 : 18),
+        padding: EdgeInsets.all(compact ? 12 : 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -995,16 +995,16 @@ class _PodiumCard extends StatelessWidget {
               children: [
                 _RankingOverallBadge(
                   value: player.overall,
-                  size: compact ? 58 : (highlight ? 68 : 62),
+                  size: compact ? 54 : (highlight ? 64 : 58),
                 ),
-                SizedBox(width: compact ? 10 : 14),
+                SizedBox(width: compact ? 8 : 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
+                        spacing: compact ? 6 : 8,
+                        runSpacing: 6,
                         children: [
                           _RankingPlacementPill(
                             rank: rank,
@@ -1024,15 +1024,15 @@ class _PodiumCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: compact ? 15 : 18,
+                          fontSize: compact ? 14 : 17,
                           fontWeight: FontWeight.w800,
                           letterSpacing: -0.3,
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      SizedBox(height: compact ? 6 : 8),
                       Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
+                        spacing: compact ? 6 : 8,
+                        runSpacing: 6,
                         children: [
                           _RankingMetaPill(
                             icon: Icons.sports_soccer_rounded,
@@ -1097,8 +1097,8 @@ class _RankingListItem extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _RankingOverallBadge(value: player.overall),
-            const SizedBox(width: 14),
+            _RankingOverallBadge(value: player.overall, size: 62),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1114,9 +1114,11 @@ class _RankingListItem extends StatelessWidget {
                   const SizedBox(height: 10),
                   Text(
                     player.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 18,
+                      fontSize: 17,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.3,
                     ),
@@ -1245,11 +1247,13 @@ class _RankingPlacementPill extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 14, color: color),
-            const SizedBox(width: 6),
+            Icon(icon, size: 13, color: color),
+            const SizedBox(width: 5),
           ],
           Text(
             '$rankº lugar',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: color,
               fontSize: 12,
@@ -1295,12 +1299,17 @@ class _RankingMetaPill extends StatelessWidget {
             color: isPosition ? style!.foreground : AppColors.primary,
           ),
           const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              color: isPosition ? style!.foreground : Colors.white.withValues(alpha: 0.78),
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 116),
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: isPosition ? style!.foreground : Colors.white.withValues(alpha: 0.78),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
