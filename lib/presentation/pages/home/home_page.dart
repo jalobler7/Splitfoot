@@ -67,6 +67,7 @@ class HomePage extends StatelessWidget {
                       _SecondaryActionButton(
                         icon: Icons.help_outline_rounded,
                         label: 'Ajuda',
+                        balanceTrailingSpace: true,
                         onTap: () => context.go(AppRoutes.help),
                       ),
                       const SizedBox(height: 24),
@@ -253,11 +254,13 @@ class _SecondaryActionButton extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
+    this.balanceTrailingSpace = false,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final bool balanceTrailingSpace;
 
   @override
   Widget build(BuildContext context) {
@@ -305,6 +308,7 @@ class _SecondaryActionButton extends StatelessWidget {
                   ),
                 ),
               ),
+              if (balanceTrailingSpace) const SizedBox(width: 46),
             ],
           ),
         ),
