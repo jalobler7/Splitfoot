@@ -45,7 +45,6 @@ class _ResultPageState extends State<ResultPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final results = widget.results;
 
     return Scaffold(
@@ -67,13 +66,10 @@ class _ResultPageState extends State<ResultPage> {
             child: Column(
               children: [
                 _ResultHeader(
-                  theme: theme,
-                  currentIndex: _currentIndex,
-                  totalResults: results.length,
                   onBack: () => context.go(AppRoutes.home),
                   onShare: _handleShareOrCopyCurrentResult,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 _SectionSurface(
                   child: Column(
                     children: [
@@ -188,111 +184,27 @@ class _ResultPageState extends State<ResultPage> {
 
 class _ResultHeader extends StatelessWidget {
   const _ResultHeader({
-    required this.theme,
-    required this.currentIndex,
-    required this.totalResults,
     required this.onBack,
     required this.onShare,
   });
 
-  final ThemeData theme;
-  final int currentIndex;
-  final int totalResults;
   final VoidCallback onBack;
   final VoidCallback onShare;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF17231D),
-            Color(0xFF101915),
-          ],
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x22000000),
-            blurRadius: 30,
-            offset: Offset(0, 18),
-          ),
-        ],
+        color: Colors.transparent,
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _IconSurfaceButton(
             icon: Icons.arrow_back_rounded,
             onTap: onBack,
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
-                  ),
-                  child: const Text(
-                    'RESULTADO PREMIUM',
-                    style: TextStyle(
-                      color: AppColors.primary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.05,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  'Divisao de Times',
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    color: Colors.white,
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.6,
-                    height: 1,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Compare rapidamente as melhores combinacoes geradas e escolha a opcao mais equilibrada.',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.66),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    height: 1.45,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    _InfoBadge(
-                      icon: Icons.view_carousel_rounded,
-                      label: '${currentIndex + 1} de $totalResults',
-                    ),
-                    _InfoBadge(
-                      icon: kIsWeb ? Icons.copy_rounded : Icons.share_rounded,
-                      label: kIsWeb ? 'Copiar' : 'Compartilhar',
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
+          const Spacer(),
           _TopActionButton(
             icon: kIsWeb ? Icons.copy_rounded : Icons.share_rounded,
             label: kIsWeb ? 'Copiar' : 'Compartilhar',
