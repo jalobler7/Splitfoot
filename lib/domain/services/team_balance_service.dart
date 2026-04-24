@@ -34,7 +34,7 @@ class TeamBalanceService {
         teamA: List<PlayerModel>.from(teamA),
         teamB: List<PlayerModel>.from(teamB),
         score: difference,
-        scoreLabel: 'Diferenca de overall medio',
+        scoreLabel: 'Overall medio',
       );
 
       if (seenKeys.add(result.canonicalKey)) {
@@ -79,7 +79,7 @@ class TeamBalanceService {
         teamA: List<PlayerModel>.from(teamA),
         teamB: List<PlayerModel>.from(teamB),
         score: score,
-        scoreLabel: 'Diferenca total de atributos',
+        scoreLabel: 'Atributos',
       );
 
       if (seenKeys.add(result.canonicalKey)) {
@@ -141,7 +141,7 @@ class TeamBalanceService {
         teamA: List<PlayerModel>.from(teamA),
         teamB: List<PlayerModel>.from(teamB),
         score: overallDifference,
-        scoreLabel: 'Diferenca de overall total (com posicoes)',
+        scoreLabel: 'Posicoes',
       );
 
       if (seenKeys.add(result.canonicalKey)) {
