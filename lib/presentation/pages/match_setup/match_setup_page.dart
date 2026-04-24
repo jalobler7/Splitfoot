@@ -77,11 +77,11 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
   String _balanceLabel(BalanceMode mode) {
     switch (mode) {
       case BalanceMode.overallAverage:
-        return 'Overall medio';
+        return 'Overall médio';
       case BalanceMode.attributes:
         return 'Atributos';
       case BalanceMode.positions:
-        return 'Posicoes';
+        return 'Posições';
     }
   }
 
@@ -182,7 +182,7 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
     if (teamA + teamB != selectedPlayersList.length) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Quantidade de jogadores nao bate com os times'),
+          content: Text('Quantidade de jogadores não bate com os times'),
         ),
       );
       return;
@@ -231,7 +231,7 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
       if (results.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Nenhuma opcao de escalacao foi encontrada'),
+            content: Text('Nenhuma opção de escalação foi encontrada'),
           ),
         );
         return;
@@ -314,8 +314,8 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
                               child: Column(
                                 children: [
                                   const _SectionLabel(
-                                    title: 'Configuracao',
-                                    subtitle: 'Defina o esporte, o modo de divisao e o tamanho de cada time.',
+                                    title: 'Configuração',
+                                    subtitle: 'Defina o esporte, o modo de divisão e o tamanho de cada time.',
                                   ),
                                   const SizedBox(height: 14),
                                   _PremiumDropdown<SportType>(
@@ -335,7 +335,7 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
                                   const SizedBox(height: 12),
                                   _PremiumDropdown<BalanceMode>(
                                     value: _balanceMode,
-                                    label: 'Modo de divisao',
+                                    label: 'Modo de divisão',
                                     leadingIcon: Icons.tune_rounded,
                                     items: BalanceMode.values
                                         .map(
@@ -427,7 +427,7 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        '${visiblePlayers.length} disponiveis',
+                                        '${visiblePlayers.length} disponíveis',
                                         style: TextStyle(
                                           color: Colors.white.withValues(alpha: 0.56),
                                           fontSize: 13,

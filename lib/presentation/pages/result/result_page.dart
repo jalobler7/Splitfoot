@@ -464,7 +464,7 @@ class _AttributeComparisonCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           _ComparisonRow(
-            label: 'Folego',
+            label: 'Fôlego',
             teamAValue: '${result.teamAStaminaTotal}',
             teamBValue: '${result.teamBStaminaTotal}',
           ),

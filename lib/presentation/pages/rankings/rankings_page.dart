@@ -400,7 +400,7 @@ class _RankingsHeroCard extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           const Text(
-            'Desempenho, disputa e leitura rapida para decidir quem chega no topo.',
+            'Desempenho, disputa e leitura rápida para decidir quem chega no topo.',
             style: TextStyle(
               color: Colors.white,
               fontSize: 24,

@@ -289,7 +289,7 @@ class _PlayersPageState extends State<PlayersPage> {
                     alignment: Alignment.centerLeft,
                     child: _availablePositions.isEmpty
                         ? const _InlineNotice(
-                            text: 'Nenhuma posi\u00E7\u00E3o dispon\u00EDvel para o filtro.',
+                            text: 'Nenhuma posição disponível para o filtro.',
                           )
                         : Wrap(
                             spacing: 10,
@@ -520,7 +520,7 @@ class _PlayersHeader extends StatelessWidget {
             height: isCompact ? 12 : 16,
           ),
           _SectionLabel(
-            title: 'Posicoes',
+            title: 'Posições',
             subtitle: positionSubtitle,
             compact: isCompact,
           ),
@@ -1306,7 +1306,7 @@ class _PaginationBar extends StatelessWidget {
                     Expanded(
                       child: _PaginationButton(
                         icon: Icons.arrow_forward_ios_rounded,
-                        label: 'Proxima',
+                        label: 'Próxima',
                         enabled: canGoForward,
                         onTap: onNext,
                         alignEnd: true,
@@ -1336,7 +1336,7 @@ class _PaginationBar extends StatelessWidget {
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
                     child: Text(
-                      'Pagina $currentPage de $totalPages',
+                      'Página $currentPage de $totalPages',
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         color: Colors.white,
@@ -1351,7 +1351,7 @@ class _PaginationBar extends StatelessWidget {
                 flex: 3,
                 child: _PaginationButton(
                   icon: Icons.arrow_forward_ios_rounded,
-                  label: 'Proxima',
+                  label: 'Próxima',
                   enabled: canGoForward,
                   onTap: onNext,
                   alignEnd: true,
