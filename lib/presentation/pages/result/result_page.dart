@@ -77,7 +77,7 @@ class _ResultPageState extends State<ResultPage> {
                         children: [
                           Expanded(
                             child: Text(
-                              'Opcao ${_currentIndex + 1} de ${results.length}',
+                              'Opção ${_currentIndex + 1} de ${results.length}',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 16,
@@ -104,7 +104,7 @@ class _ResultPageState extends State<ResultPage> {
                             final isSelected = index == _currentIndex;
 
                             return _PageChip(
-                              label: 'Opcao ${index + 1}',
+                              label: 'Opção ${index + 1}',
                               selected: isSelected,
                               onTap: () => _goToPage(index),
                             );
@@ -415,17 +415,9 @@ class _ScoreSummaryCard extends StatelessWidget {
             children: [
               Expanded(
                 child: _MetricTile(
-                  label: 'Diferenca geral',
+                  label: 'Diferença geral',
                   value: overallDifference,
                   icon: Icons.compare_arrows_rounded,
-                ),
-              ),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: _MetricTile(
-                  label: 'Leitura',
-                  value: 'Rapida',
-                  icon: Icons.visibility_rounded,
                 ),
               ),
             ],
@@ -450,7 +442,7 @@ class _AttributeComparisonCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Comparativo de atributos',
+            'Atributos',
             style: TextStyle(
               color: Colors.white,
               fontSize: 16,
@@ -486,7 +478,7 @@ class _AttributeComparisonCard extends StatelessWidget {
               border: Border.all(color: AppColors.primary.withValues(alpha: 0.22)),
             ),
             child: Text(
-              'Diferenca total: ${result.attributeDifferenceScore}',
+              'Diferença total: ${result.attributeDifferenceScore}',
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 13,
@@ -778,7 +770,7 @@ class _InfoBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(999),
@@ -786,16 +778,21 @@ class _InfoBadge extends StatelessWidget {
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Icon(icon, size: 16, color: AppColors.primary),
-          const SizedBox(width: 7),
+          Icon(icon, size: 15, color: AppColors.primary),
+          const SizedBox(width: 6),
           Text(
             label,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w700,
+              height: 1,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.fade,
+            softWrap: false,
           ),
         ],
       ),
