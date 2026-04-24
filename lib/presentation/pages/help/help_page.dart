@@ -12,32 +12,32 @@ class HelpPage extends StatelessWidget {
       title: 'Como funciona',
       icon: Icons.auto_awesome_rounded,
       description:
-          'O Splitfoot organiza seus jogadores, calcula notas e gera combinacoes mais equilibradas para partidas de futebol amador.',
+          'O Splitfoot organiza seus jogadores, calcula notas e gera combinações mais equilibradas para partidas de futebol amador.',
       bullets: [
-        'Cadastre os atletas com ataque, defesa, folego, posicao e esporte.',
-        'Escolha o formato da partida e selecione os jogadores disponiveis.',
-        'Gere os times para comparar equilibrio e desempenho antes de jogar.',
+        'Cadastre os atletas com ataque, defesa, fôlego, posição e esporte.',
+        'Escolha o formato da partida e selecione os jogadores disponíveis.',
+        'Gere os times para comparar equilíbrio e desempenho antes de jogar.',
       ],
     ),
     _HelpSectionData(
       title: 'Como montar partida',
       icon: Icons.sports_soccer_rounded,
       description:
-          'Na tela principal, toque em "Montar Partida" para definir esporte, jogadores ativos, tamanho dos times e modo de divisao.',
+          'Na tela principal, toque em "Montar Partida" para definir esporte, jogadores ativos, tamanho dos times e modo de divisão.',
       bullets: [
-        'Use a selecao correta de atletas para evitar sobra ou falta de jogadores.',
-        'Prefira preencher posicoes para melhorar a divisao por funcao em campo.',
-        'Revise o resultado e gere novamente se quiser testar outro criterio.',
+        'Use a seleção correta de atletas para evitar sobra ou falta de jogadores.',
+        'Prefira preencher posições para melhorar a divisão por função em campo.',
+        'Revise o resultado e gere novamente se quiser testar outro critério.',
       ],
     ),
     _HelpSectionData(
       title: 'Como cadastrar jogadores',
       icon: Icons.groups_rounded,
       description:
-          'A tela de jogadores concentra o cadastro, edicao e organizacao dos atletas usados nas partidas e rankings.',
+          'A tela de jogadores concentra o cadastro, edição e organização dos atletas usados nas partidas e rankings.',
       bullets: [
-        'Defina nome, posicao e modalidade correta para cada atleta.',
-        'Preencha os atributos de 0 a 99 com o maximo de criterio possivel.',
+        'Defina nome, posição e modalidade correta para cada atleta.',
+        'Preencha os atributos de 0 a 99 com o maximo de critério possível.',
         'Manter dados consistentes melhora muito a qualidade dos times gerados.',
       ],
     ),
@@ -48,27 +48,26 @@ class HelpPage extends StatelessWidget {
           'Os rankings destacam os melhores jogadores por esporte e categoria com base nos atributos cadastrados.',
       bullets: [
         'O ranking geral usa a nota overall como base principal.',
-        'Categorias ofensivas, defensivas e fisicas leem cada atributo separadamente.',
-        'Goleiros recebem destaque conforme desempenho defensivo e consistencia geral.',
+        'Categorias ofensivas, defensivas e físicaas leem cada atributo separadamente.',
       ],
     ),
     _HelpSectionData(
-      title: 'Duvidas frequentes',
+      title: 'Dúvidas frequentes',
       icon: Icons.quiz_rounded,
       description:
-          'As respostas abaixo resolvem as perguntas mais comuns sobre uso, edicao e equilibrio dos times.',
+          'As respostas abaixo resolvem as perguntas mais comuns sobre uso, edição e equilíbrio dos times.',
       bullets: [
-        'Se algo nao bater, revise os dados do jogador antes de gerar os times novamente.',
-        'Resultados diferentes podem acontecer ao trocar o modo de divisao.',
+        'Se algo não bater, revise os dados do jogador antes de gerar os times novamente.',
+        'Resultados diferentes podem acontecer ao trocar o modo de divisão.',
       ],
     ),
     _HelpSectionData(
       title: 'Sobre o app',
       icon: Icons.info_outline_rounded,
       description:
-          'Splitfoot foi pensado para deixar a organizacao da pelada mais rapida, justa e com leitura clara no celular.',
+          'Splitfoot foi pensado para deixar a organização da pelada mais rápida, justa e com leitura clara no celular.',
       bullets: [
-        'Visual premium com foco em desempenho e confianca.',
+        'Visual premium com foco em desempenho e confiança.',
         'Fluxo simples para cadastrar, montar partida e acompanhar rankings.',
       ],
     ),
@@ -78,22 +77,22 @@ class HelpPage extends StatelessWidget {
     _FaqItemData(
       question: 'Como montar times equilibrados?',
       answer:
-          'Cadastre os jogadores com atributos realistas, selecione a quantidade exata de atletas para a partida e use o modo de divisao que melhor combina com o contexto do jogo.',
+          'Cadastre os jogadores com atributos realistas, selecione a quantidade exata de atletas para a partida e use o modo de divisão que melhor combina com o contexto do jogo.',
     ),
     _FaqItemData(
       question: 'Posso editar jogadores depois?',
       answer:
-          'Sim. A tela de jogadores permite ajustar nome, posicao, modalidade e atributos sempre que voce quiser refinar os dados.',
+          'Sim. A tela de jogadores permite ajustar nome, posição, modalidade e atributos sempre que voce quiser refinar os dados.',
     ),
     _FaqItemData(
-      question: 'Como o ranking e calculado?',
+      question: 'Como o ranking é calculado?',
       answer:
-          'O ranking geral considera o overall do jogador. As demais categorias usam ataque, defesa, folego ou filtros especificos, como goleiros.',
+          'O ranking geral considera o overall do jogador.',
     ),
     _FaqItemData(
       question: 'Quantos jogadores posso cadastrar?',
       answer:
-          'Nao ha limite pratico para uso comum. O ideal e manter a base organizada para facilitar busca, selecao e leitura dos rankings.',
+          'Não há limite prático para uso comum. O ideal e manter a base organizada para facilitar busca, seleção e leitura dos rankings.',
     ),
   ];
 
@@ -286,7 +285,7 @@ class _HelpHeroCard extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           const Text(
-            'Encontre orientacoes sobre cadastro, montagem de partidas, rankings e respostas para as duvidas mais comuns em um fluxo simples de consultar.',
+            'Encontre orientações sobre cadastro, montagem de partidas, rankings e respostas para as dúvidas mais comuns em um fluxo simples de consultar.',
             style: TextStyle(
               color: AppColors.textSecondary,
               fontSize: 14,
@@ -299,9 +298,9 @@ class _HelpHeroCard extends StatelessWidget {
             spacing: 12,
             runSpacing: 12,
             children: const [
-              _OverviewBadge(icon: Icons.menu_book_rounded, label: 'Guia por secoes'),
-              _OverviewBadge(icon: Icons.flash_on_rounded, label: 'Leitura rapida'),
-              _OverviewBadge(icon: Icons.verified_rounded, label: 'Uso com confianca'),
+              _OverviewBadge(icon: Icons.menu_book_rounded, label: 'Guia por sseções'),
+              _OverviewBadge(icon: Icons.flash_on_rounded, label: 'Leitura rápida'),
+              _OverviewBadge(icon: Icons.verified_rounded, label: 'Uso com confiança'),
             ],
           ),
         ],
@@ -360,7 +359,7 @@ class _SectionsGrid extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Guia por secoes',
+          'Guia por seções',
           style: TextStyle(
             color: Colors.white,
             fontSize: 20,
@@ -650,7 +649,7 @@ class _AboutFooterCard extends StatelessWidget {
           SizedBox(height: 16),
           _MetaRow(
             icon: Icons.verified_rounded,
-            label: 'Versao do app',
+            label: 'Versão do app',
             value: '1.0.0',
           ),
           SizedBox(height: 12),
