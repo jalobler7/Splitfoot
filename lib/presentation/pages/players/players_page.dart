@@ -29,16 +29,14 @@ class _PlayersPageState extends State<PlayersPage> {
   bool _isHeaderCompact = false;
   static const int _pageSize = 5;
 
-  static const List<String> _sportOptions = [
-    'Futsal',
-    'Fut7',
-    'Fut11',
-  ];
+  static const List<String> _sportOptions = ['Futsal', 'Fut7', 'Fut11'];
 
   List<String> get _availablePositions {
     final playersBySport = _selectedSport == null
         ? _allPlayers
-        : _allPlayers.where((player) => player.sport == _selectedSport).toList();
+        : _allPlayers
+              .where((player) => player.sport == _selectedSport)
+              .toList();
 
     final positions = playersBySport.map((player) => player.position).toSet();
     final orderedPositions = positions.toList()..sort();
@@ -63,7 +61,8 @@ class _PlayersPageState extends State<PlayersPage> {
   }
 
   void _onScroll() {
-    final shouldCompact = _scrollController.hasClients && _scrollController.offset > 24;
+    final shouldCompact =
+        _scrollController.hasClients && _scrollController.offset > 24;
     if (shouldCompact == _isHeaderCompact) return;
 
     setState(() {
@@ -92,10 +91,12 @@ class _PlayersPageState extends State<PlayersPage> {
   List<PlayerModel> _applyFilters() {
     final filtered = _allPlayers.where((player) {
       final matchesName =
-          _searchQuery.isEmpty || player.name.toLowerCase().contains(_searchQuery);
+          _searchQuery.isEmpty ||
+          player.name.toLowerCase().contains(_searchQuery);
       final matchesSport =
           _selectedSport == null || player.sport == _selectedSport;
-      final matchesPosition = _selectedPositions.isEmpty ||
+      final matchesPosition =
+          _selectedPositions.isEmpty ||
           _selectedPositions.contains(player.position);
 
       return matchesName && matchesSport && matchesPosition;
@@ -249,6 +250,7 @@ class _PlayersPageState extends State<PlayersPage> {
     final theme = Theme.of(context);
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       extendBody: true,
       floatingActionButton: _PremiumFab(onTap: _openAddPlayerDialog),
       body: Container(
@@ -265,8 +267,15 @@ class _PlayersPageState extends State<PlayersPage> {
         ),
         child: SafeArea(
           top: true,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: SingleChildScrollView(
+            controller: _scrollController,
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: EdgeInsets.fromLTRB(
+              16,
+              8,
+              16,
+              MediaQuery.viewInsetsOf(context).bottom + 108,
+            ),
             child: Column(
               children: [
                 _PlayersHeader(
@@ -295,8 +304,9 @@ class _PlayersPageState extends State<PlayersPage> {
                             spacing: 10,
                             runSpacing: 10,
                             children: _availablePositions.map((position) {
-                              final isSelected =
-                                  _selectedPositions.contains(position);
+                              final isSelected = _selectedPositions.contains(
+                                position,
+                              );
                               return _PositionChip(
                                 label: position,
                                 selected: isSelected,
@@ -315,13 +325,11 @@ class _PlayersPageState extends State<PlayersPage> {
                   curve: Curves.easeOutCubic,
                   height: _isHeaderCompact ? 12 : 18,
                 ),
-                Expanded(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 220),
-                    switchInCurve: Curves.easeOutCubic,
-                    switchOutCurve: Curves.easeInCubic,
-                    child: _buildPlayerContent(),
-                  ),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 220),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  child: _buildPlayerContent(),
                 ),
               ],
             ),
@@ -337,7 +345,8 @@ class _PlayersPageState extends State<PlayersPage> {
         key: ValueKey('empty-all'),
         icon: Icons.groups_outlined,
         title: 'Nenhum jogador cadastrado',
-        subtitle: 'Adicione jogadores para come\u00E7ar a montar partidas equilibradas.',
+        subtitle:
+            'Adicione jogadores para come\u00E7ar a montar partidas equilibradas.',
       );
     }
 
@@ -350,41 +359,40 @@ class _PlayersPageState extends State<PlayersPage> {
       );
     }
 
-    return ListView.separated(
-      key: const ValueKey('player-list'),
-      controller: _scrollController,
-      padding: const EdgeInsets.only(bottom: 108),
-      itemCount: _paginatedPlayers.length + 1,
-      separatorBuilder: (_, index) =>
-          index == _paginatedPlayers.length - 1 ? const SizedBox(height: 18) : const SizedBox(height: 14),
-      itemBuilder: (context, index) {
-        if (index == _paginatedPlayers.length) {
-          return _PaginationBar(
-            currentPage: _currentPage + 1,
-            totalPages: _totalPages,
-            canGoBack: _currentPage > 0,
-            canGoForward: _currentPage < _totalPages - 1,
-            onPrevious: _goToPreviousPage,
-            onNext: _goToNextPage,
-          );
-        }
+    final children = <Widget>[];
 
-        final player = _paginatedPlayers[index];
-        return _PlayerCard(
-          player: player,
-          onEdit: () => _openEditPlayerDialog(player),
-          onDelete: () => _confirmDeletePlayer(player),
+    for (var index = 0; index < _paginatedPlayers.length; index++) {
+      final player = _paginatedPlayers[index];
+      children
+        ..add(
+          _PlayerCard(
+            player: player,
+            onEdit: () => _openEditPlayerDialog(player),
+            onDelete: () => _confirmDeletePlayer(player),
+          ),
+        )
+        ..add(
+          SizedBox(height: index == _paginatedPlayers.length - 1 ? 18 : 14),
         );
-      },
+    }
+
+    children.add(
+      _PaginationBar(
+        currentPage: _currentPage + 1,
+        totalPages: _totalPages,
+        canGoBack: _currentPage > 0,
+        canGoForward: _currentPage < _totalPages - 1,
+        onPrevious: _goToPreviousPage,
+        onNext: _goToNextPage,
+      ),
     );
+
+    return Column(key: const ValueKey('player-list'), children: children);
   }
 }
 
 class _TopIconButton extends StatelessWidget {
-  const _TopIconButton({
-    required this.icon,
-    required this.onTap,
-  });
+  const _TopIconButton({required this.icon, required this.onTap});
 
   final IconData icon;
   final VoidCallback onTap;
@@ -442,7 +450,12 @@ class _PlayersHeader extends StatelessWidget {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeOutCubic,
-      padding: EdgeInsets.fromLTRB(16, isCompact ? 14 : 18, 16, isCompact ? 14 : 18),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        isCompact ? 14 : 18,
+        16,
+        isCompact ? 14 : 18,
+      ),
       decoration: BoxDecoration(
         color: const Color(0xFF12191A).withValues(alpha: 0.92),
         borderRadius: BorderRadius.circular(28),
@@ -460,10 +473,7 @@ class _PlayersHeader extends StatelessWidget {
         children: [
           Row(
             children: [
-              _TopIconButton(
-                icon: Icons.arrow_back_rounded,
-                onTap: onBack,
-              ),
+              _TopIconButton(icon: Icons.arrow_back_rounded, onTap: onBack),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
@@ -537,9 +547,7 @@ class _PlayersHeader extends StatelessWidget {
 }
 
 class _CompactCounterBadge extends StatelessWidget {
-  const _CompactCounterBadge({
-    required this.count,
-  });
+  const _CompactCounterBadge({required this.count});
 
   final int count;
 
@@ -601,7 +609,10 @@ class _SearchField extends StatelessWidget {
             size: 22,
           ),
         ),
-        prefixIconConstraints: const BoxConstraints(minWidth: 46, minHeight: 46),
+        prefixIconConstraints: const BoxConstraints(
+          minWidth: 46,
+          minHeight: 46,
+        ),
         suffixIcon: hasQuery
             ? IconButton(
                 onPressed: onClear,
@@ -614,7 +625,10 @@ class _SearchField extends StatelessWidget {
             : null,
         filled: true,
         fillColor: const Color(0xFF141A1D),
-        contentPadding: EdgeInsets.symmetric(horizontal: 18, vertical: compact ? 14 : 18),
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: 18,
+          vertical: compact ? 14 : 18,
+        ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(22),
           borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
@@ -672,7 +686,10 @@ class _SportDropdown extends StatelessWidget {
         ),
         filled: true,
         fillColor: const Color(0xFF141A1D),
-        contentPadding: EdgeInsets.symmetric(horizontal: 18, vertical: compact ? 14 : 18),
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: 18,
+          vertical: compact ? 14 : 18,
+        ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(22),
           borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
@@ -691,10 +708,8 @@ class _SportDropdown extends StatelessWidget {
           child: Text('Todos os esportes'),
         ),
         ...items.map(
-          (sport) => DropdownMenuItem<String?>(
-            value: sport,
-            child: Text(sport),
-          ),
+          (sport) =>
+              DropdownMenuItem<String?>(value: sport, child: Text(sport)),
         ),
       ],
       onChanged: onChanged,
@@ -854,10 +869,7 @@ class _PlayerCard extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF161C1F),
-            Color(0xFF111618),
-          ],
+          colors: [Color(0xFF161C1F), Color(0xFF111618)],
         ),
         border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
         boxShadow: const [
@@ -911,10 +923,7 @@ class _PlayerCard extends StatelessWidget {
                 ),
                 Column(
                   children: [
-                    _CardActionButton(
-                      icon: Icons.edit_outlined,
-                      onTap: onEdit,
-                    ),
+                    _CardActionButton(icon: Icons.edit_outlined, onTap: onEdit),
                     const SizedBox(height: 8),
                     _CardActionButton(
                       icon: Icons.delete_outline_rounded,
@@ -975,10 +984,7 @@ class _OverallBadge extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF35D76C),
-            Color(0xFF178C46),
-          ],
+          colors: [Color(0xFF35D76C), Color(0xFF178C46)],
         ),
         boxShadow: [
           BoxShadow(
@@ -1043,21 +1049,31 @@ class _MetaPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: isPosition ? style!.background : Colors.white.withValues(alpha: 0.04),
+        color: isPosition
+            ? style!.background
+            : Colors.white.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
-          color: isPosition ? style!.border : Colors.white.withValues(alpha: 0.06),
+          color: isPosition
+              ? style!.border
+              : Colors.white.withValues(alpha: 0.06),
         ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: isPosition ? style!.foreground : AppColors.primary),
+          Icon(
+            icon,
+            size: 14,
+            color: isPosition ? style!.foreground : AppColors.primary,
+          ),
           const SizedBox(width: 6),
           Text(
             label,
             style: TextStyle(
-              color: isPosition ? style!.foreground : Colors.white.withValues(alpha: 0.78),
+              color: isPosition
+                  ? style!.foreground
+                  : Colors.white.withValues(alpha: 0.78),
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -1081,8 +1097,9 @@ class _CardActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        isDanger ? AppColors.danger : Colors.white.withValues(alpha: 0.74);
+    final color = isDanger
+        ? AppColors.danger
+        : Colors.white.withValues(alpha: 0.74);
 
     return _PressableScale(
       onTap: onTap,
@@ -1124,7 +1141,11 @@ class _AttributeTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 16, color: AppColors.primary.withValues(alpha: 0.90)),
+          Icon(
+            icon,
+            size: 16,
+            color: AppColors.primary.withValues(alpha: 0.90),
+          ),
           const SizedBox(height: 10),
           Text(
             label,
@@ -1167,10 +1188,7 @@ class _PremiumFab extends StatelessWidget {
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF34D46A),
-              Color(0xFF169A49),
-            ],
+            colors: [Color(0xFF34D46A), Color(0xFF169A49)],
           ),
           boxShadow: [
             BoxShadow(
@@ -1395,8 +1413,9 @@ class _PaginationButton extends StatelessWidget {
             border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
           ),
           child: Row(
-            mainAxisAlignment:
-                alignEnd ? MainAxisAlignment.end : MainAxisAlignment.start,
+            mainAxisAlignment: alignEnd
+                ? MainAxisAlignment.end
+                : MainAxisAlignment.start,
             children: [
               if (!alignEnd) ...[
                 Icon(icon, color: Colors.white, size: 16),
