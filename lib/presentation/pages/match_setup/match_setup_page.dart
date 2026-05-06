@@ -3,7 +3,9 @@ import '../../../app/theme/app_colors.dart';
 import '../../../core/enums/balance_mode.dart';
 import '../../../core/enums/sport_type.dart';
 import '../../../data/datasources/player_local_datasource.dart';
+import '../../../data/datasources/team_group_local_datasource.dart';
 import '../../../data/models/player_model.dart';
+import '../../../data/models/team_group_model.dart';
 import '../../../domain/entities/team_result.dart';
 import '../../../domain/services/team_balance_service.dart';
 import 'package:flutter/material.dart';
@@ -18,13 +20,16 @@ class MatchSetupPage extends StatefulWidget {
 
 class _MatchSetupPageState extends State<MatchSetupPage> {
   final PlayerLocalDataSource _dataSource = PlayerLocalDataSource();
+  final TeamGroupLocalDataSource _groupDataSource = TeamGroupLocalDataSource();
   final TeamBalanceService _teamBalanceService = TeamBalanceService();
 
   List<PlayerModel> _allPlayers = [];
+  List<TeamGroupModel> _groups = [];
   final Set<String> _selectedPlayers = {};
 
   SportType _selectedSport = SportType.futsal;
   BalanceMode _balanceMode = BalanceMode.overallAverage;
+  String? _selectedGroupId;
 
   final TextEditingController _teamAController = TextEditingController(text: '5');
   final TextEditingController _teamBController = TextEditingController(text: '5');
@@ -41,10 +46,21 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
 
   void _loadPlayers() {
     final players = _dataSource.getAllPlayers();
+    final groups = _groupDataSource.getAllGroups();
 
     setState(() {
       _allPlayers = players;
+      _groups = groups;
+      _selectedGroupId = _resolveSelectedGroupId(groups);
     });
+  }
+
+  String? _resolveSelectedGroupId(List<TeamGroupModel> groups) {
+    if (groups.isEmpty) return null;
+    if (_selectedGroupId != null && groups.any((group) => group.id == _selectedGroupId)) {
+      return _selectedGroupId;
+    }
+    return groups.first.id;
   }
 
   void _onSearchChanged() {
@@ -107,6 +123,17 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
     });
   }
 
+  void _onGroupChanged(String? value) {
+    if (value == null || value == _selectedGroupId) return;
+
+    setState(() {
+      _selectedGroupId = value;
+      _selectedPlayers.clear();
+      _searchController.clear();
+      _searchText = '';
+    });
+  }
+
   int _expectedTotalPlayers() {
     final teamA = int.tryParse(_teamAController.text) ?? 0;
     final teamB = int.tryParse(_teamBController.text) ?? 0;
@@ -162,7 +189,17 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
     final teamA = int.tryParse(_teamAController.text) ?? 0;
     final teamB = int.tryParse(_teamBController.text) ?? 0;
 
+    if (_selectedGroupId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Selecione um grupo antes de montar a partida.'),
+        ),
+      );
+      return;
+    }
+
     final filteredPlayers = _allPlayers
+        .where((player) => player.teamGroupId == _selectedGroupId)
         .where((player) => player.sport == _sportKey(_selectedSport))
         .toList();
 
@@ -259,6 +296,7 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
   @override
   Widget build(BuildContext context) {
     final sportPlayers = _allPlayers
+        .where((player) => player.teamGroupId == _selectedGroupId)
         .where((player) => player.sport == _sportKey(_selectedSport))
         .toList();
 
@@ -331,6 +369,23 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
                                         )
                                         .toList(),
                                     onChanged: _onSportChanged,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _PremiumDropdown<String>(
+                                    value: _selectedGroupId,
+                                    label: 'Selecionar grupo',
+                                    leadingIcon: Icons.folder_copy_rounded,
+                                    items: _groups
+                                        .map(
+                                          (group) => DropdownMenuItem(
+                                            value: group.id,
+                                            child: Text(group.name),
+                                          ),
+                                        )
+                                        .toList(),
+                                    onChanged: _groups.isEmpty
+                                        ? (String? _) {}
+                                        : _onGroupChanged,
                                   ),
                                   const SizedBox(height: 12),
                                   _PremiumDropdown<BalanceMode>(
@@ -417,7 +472,7 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'Jogadores de ${_sportLabel(_selectedSport)}',
+                                        'Atletas deste grupo',
                                         style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 18,
@@ -427,7 +482,7 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        '${visiblePlayers.length} disponíveis',
+                                        '${visiblePlayers.length} disponiveis em ${_sportLabel(_selectedSport)}',
                                         style: TextStyle(
                                           color: Colors.white.withValues(alpha: 0.56),
                                           fontSize: 13,
@@ -445,12 +500,20 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
                             ),
                           ),
                           const SliverToBoxAdapter(child: SizedBox(height: 12)),
-                          if (sportPlayers.isEmpty)
+                          if (_groups.isEmpty)
+                            const SliverToBoxAdapter(
+                              child: _EmptyState(
+                                icon: Icons.folder_copy_rounded,
+                                title: 'Nenhum grupo cadastrado',
+                                subtitle: 'Crie um grupo antes de montar a partida.',
+                              ),
+                            )
+                          else if (sportPlayers.isEmpty)
                             const SliverToBoxAdapter(
                               child: _EmptyState(
                                 icon: Icons.groups_outlined,
-                                title: 'Nenhum jogador cadastrado para este esporte',
-                                subtitle: 'Cadastre atletas antes de montar a partida.',
+                                title: 'Nenhum atleta neste grupo para este esporte',
+                                subtitle: 'Selecione outro grupo ou cadastre atletas vinculados a ele.',
                               ),
                             )
                           else if (visiblePlayers.isEmpty)
@@ -604,7 +667,7 @@ class _PremiumDropdown<T> extends StatelessWidget {
     required this.onChanged,
   });
 
-  final T value;
+  final T? value;
   final String label;
   final IconData leadingIcon;
   final List<DropdownMenuItem<T>> items;

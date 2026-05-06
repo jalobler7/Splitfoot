@@ -6,7 +6,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/routes/app_routes.dart';
 import '../../../data/datasources/player_local_datasource.dart';
+import '../../../data/datasources/team_group_local_datasource.dart';
 import '../../../data/models/player_model.dart';
+import '../../../data/models/team_group_model.dart';
 import '../../../domain/services/ranking_service.dart';
 import '../../../widgets/player_visuals.dart';
 
@@ -34,9 +36,12 @@ class _RankingsPageState extends State<RankingsPage> {
   ];
 
   final PlayerLocalDataSource _dataSource = PlayerLocalDataSource();
+  final TeamGroupLocalDataSource _groupDataSource = TeamGroupLocalDataSource();
   final RankingService _rankingService = RankingService();
 
   Map<String, List<PlayerModel>> _playersBySport = const {};
+  List<TeamGroupModel> _groups = [];
+  String? _selectedGroupId;
   String _selectedSportFilter = _allSportsFilter;
   String _selectedCategory = _categories.first.id;
 
@@ -48,9 +53,11 @@ class _RankingsPageState extends State<RankingsPage> {
 
   void _loadRankings() {
     final players = _dataSource.getAllPlayers();
+    final groups = _groupDataSource.getAllGroups();
+    final selectedGroupId = _resolveSelectedGroupId(groups);
     final groupedPlayers = <String, List<PlayerModel>>{};
 
-    for (final player in players) {
+    for (final player in players.where((item) => item.teamGroupId == selectedGroupId)) {
       groupedPlayers.putIfAbsent(player.sport, () => <PlayerModel>[]).add(player);
     }
 
@@ -61,10 +68,33 @@ class _RankingsPageState extends State<RankingsPage> {
     ];
 
     setState(() {
+      _groups = groups;
+      _selectedGroupId = selectedGroupId;
+      if (_selectedSportFilter != _allSportsFilter &&
+          !orderedSports.contains(_selectedSportFilter)) {
+        _selectedSportFilter = _allSportsFilter;
+      }
       _playersBySport = {
         for (final sport in orderedSports) sport: List<PlayerModel>.from(groupedPlayers[sport]!),
       };
     });
+  }
+
+  String? _resolveSelectedGroupId(List<TeamGroupModel> groups) {
+    if (groups.isEmpty) return null;
+    if (_selectedGroupId != null && groups.any((group) => group.id == _selectedGroupId)) {
+      return _selectedGroupId;
+    }
+    return groups.first.id;
+  }
+
+  String _selectedGroupName() {
+    for (final group in _groups) {
+      if (group.id == _selectedGroupId) {
+        return group.name;
+      }
+    }
+    return 'Selecionar grupo';
   }
 
   String _sportLabel(String sport) => _sportLabels[sport] ?? sport;
@@ -158,7 +188,7 @@ class _RankingsPageState extends State<RankingsPage> {
   Widget build(BuildContext context) {
     final visibleRankings = _visibleRankings();
     final highlightStats = _buildHighlightStats();
-    final hasPlayers = _playersBySport.isNotEmpty;
+    final hasGroups = _groups.isNotEmpty;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -196,7 +226,7 @@ class _RankingsPageState extends State<RankingsPage> {
           ),
         ),
         child: SafeArea(
-          child: hasPlayers
+          child: hasGroups
               ? LayoutBuilder(
                   builder: (context, constraints) {
                     final contentMaxWidth = constraints.maxWidth > 860 ? 860.0 : double.infinity;
@@ -211,6 +241,7 @@ class _RankingsPageState extends State<RankingsPage> {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               _RankingsHeroCard(
+                                groupLabel: _selectedGroupName(),
                                 sportLabel: _selectedSportFilter == _allSportsFilter
                                     ? 'Todos os formatos'
                                     : _sportLabel(_selectedSportFilter),
@@ -218,6 +249,27 @@ class _RankingsPageState extends State<RankingsPage> {
                                 totalPlayers: visibleRankings.fold<int>(0, (sum, entry) => sum + entry.value.length),
                               ),
                               const SizedBox(height: 20),
+                              _FilterSection(
+                                title: 'Grupo',
+                                items: _groups
+                                    .map(
+                                      (group) => _FilterChipData(
+                                        id: group.id,
+                                        label: group.name,
+                                        icon: Icons.folder_copy_rounded,
+                                      ),
+                                    )
+                                    .toList(),
+                                selectedId: _selectedGroupId ?? '',
+                                onSelected: (value) {
+                                  setState(() {
+                                    _selectedGroupId = value;
+                                    _selectedSportFilter = _allSportsFilter;
+                                  });
+                                  _loadRankings();
+                                },
+                              ),
+                              const SizedBox(height: 16),
                               _FilterSection(
                                 title: 'Esporte',
                                 items: _availableSports()
@@ -258,7 +310,7 @@ class _RankingsPageState extends State<RankingsPage> {
                                 child: visibleRankings.isEmpty
                                     ? const _EmptyCategoryState(key: ValueKey('empty-category'))
                                     : Column(
-                                        key: ValueKey('${_selectedSportFilter}_$_selectedCategory'),
+                                        key: ValueKey('${_selectedGroupId}_${_selectedSportFilter}_$_selectedCategory'),
                                         crossAxisAlignment: CrossAxisAlignment.stretch,
                                         children: [
                                           for (var index = 0; index < visibleRankings.length; index++) ...[
@@ -327,11 +379,13 @@ class _AppBarTitle extends StatelessWidget {
 
 class _RankingsHeroCard extends StatelessWidget {
   const _RankingsHeroCard({
+    required this.groupLabel,
     required this.sportLabel,
     required this.categoryLabel,
     required this.totalPlayers,
   });
 
+  final String groupLabel;
   final String sportLabel;
   final String categoryLabel;
   final int totalPlayers;
@@ -424,6 +478,7 @@ class _RankingsHeroCard extends StatelessWidget {
             spacing: 12,
             runSpacing: 12,
             children: [
+              _OverviewBadge(icon: Icons.folder_copy_rounded, label: groupLabel),
               _OverviewBadge(icon: Icons.filter_alt_rounded, label: sportLabel),
               _OverviewBadge(icon: Icons.tune_rounded, label: categoryLabel),
               _OverviewBadge(icon: Icons.groups_rounded, label: '$totalPlayers jogadores'),

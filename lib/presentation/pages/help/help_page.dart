@@ -12,20 +12,33 @@ class HelpPage extends StatelessWidget {
       title: 'Como funciona',
       icon: Icons.auto_awesome_rounded,
       description:
-          'O Splitfoot organiza seus jogadores, calcula notas e gera combinações mais equilibradas para partidas de futebol amador.',
+      'O Splitfoot ajuda você a organizar jogadores, calcular notas e montar times mais equilibrados para partidas de futebol amador.',
       bullets: [
         'Cadastre os atletas com ataque, defesa, fôlego, posição e esporte.',
-        'Escolha o formato da partida e selecione os jogadores disponíveis.',
-        'Gere os times para comparar equilíbrio e desempenho antes de jogar.',
+        'Organize jogadores por grupos para separar cada pelada ou campeonato.',
+        'Escolha o formato da partida e gere times equilibrados com mais rapidez.',
+      ],
+    ),
+    _HelpSectionData(
+      title: 'Como funcionam os grupos',
+      icon: Icons.folder_rounded,
+      description:
+      'Os grupos funcionam como pastas para separar atletas por contexto. Assim, você não mistura jogadores de peladas, campeonatos ou turmas diferentes.',
+      bullets: [
+        'Crie grupos diferentes para cada pelada ou campeonato.',
+        'Cada atleta deve ficar vinculado a um grupo.',
+        'Use o filtro de grupo para montar partidas e visualizar rankings.',
+        'Ao excluir um grupo, os jogadores vinculados a ele também são removidos.',
       ],
     ),
     _HelpSectionData(
       title: 'Como montar partida',
       icon: Icons.sports_soccer_rounded,
       description:
-          'Na tela principal, toque em "Montar Partida" para definir esporte, jogadores ativos, tamanho dos times e modo de divisão.',
+      'Na tela principal, toque em "Montar Partida" para escolher o grupo, definir esporte, selecionar jogadores e configurar o modo de divisão.',
       bullets: [
-        'Use a seleção correta de atletas para evitar sobra ou falta de jogadores.',
+        'Selecione primeiro o grupo correto para ver apenas os atletas daquele contexto.',
+        'Use a quantidade certa de jogadores para evitar sobra ou falta.',
         'Prefira preencher posições para melhorar a divisão por função em campo.',
         'Revise o resultado e gere novamente se quiser testar outro critério.',
       ],
@@ -34,41 +47,43 @@ class HelpPage extends StatelessWidget {
       title: 'Como cadastrar jogadores',
       icon: Icons.groups_rounded,
       description:
-          'A tela de jogadores concentra o cadastro, edição e organização dos atletas usados nas partidas e rankings.',
+      'A tela de jogadores concentra o cadastro, edição e organização dos atletas usados nas partidas e rankings.',
       bullets: [
-        'Defina nome, posição e modalidade correta para cada atleta.',
-        'Preencha os atributos de 0 a 99 com o maximo de critério possível.',
-        'Manter dados consistentes melhora muito a qualidade dos times gerados.',
+        'Defina nome, grupo, posição e modalidade correta para cada atleta.',
+        'Preencha os atributos de 0 a 99 com o máximo de critério possível.',
+        'Manter dados consistentes melhora a qualidade dos times gerados.',
       ],
     ),
     _HelpSectionData(
-      title: 'Como funciona ranking',
+      title: 'Como funciona o ranking',
       icon: Icons.leaderboard_rounded,
       description:
-          'Os rankings destacam os melhores jogadores por esporte e categoria com base nos atributos cadastrados.',
+      'Os rankings destacam os melhores jogadores por esporte, grupo e categoria com base nos atributos cadastrados.',
       bullets: [
         'O ranking geral usa a nota overall como base principal.',
-        'Categorias ofensivas, defensivas e físicaas leem cada atributo separadamente.',
+        'Categorias ofensivas, defensivas e físicas analisam atributos separadamente.',
+        'Use filtros para visualizar apenas jogadores de um grupo específico.',
       ],
     ),
     _HelpSectionData(
       title: 'Dúvidas frequentes',
       icon: Icons.quiz_rounded,
       description:
-          'As respostas abaixo resolvem as perguntas mais comuns sobre uso, edição e equilíbrio dos times.',
+      'As respostas abaixo resolvem as perguntas mais comuns sobre grupos, jogadores, rankings e equilíbrio dos times.',
       bullets: [
-        'Se algo não bater, revise os dados do jogador antes de gerar os times novamente.',
+        'Se algo parecer errado, revise os dados do jogador antes de gerar os times novamente.',
         'Resultados diferentes podem acontecer ao trocar o modo de divisão.',
+        'Filtros ajudam a encontrar jogadores mais rápido e evitar confusão.',
       ],
     ),
     _HelpSectionData(
       title: 'Sobre o app',
       icon: Icons.info_outline_rounded,
       description:
-          'Splitfoot foi pensado para deixar a organização da pelada mais rápida, justa e com leitura clara no celular.',
+      'Splitfoot foi pensado para deixar a organização da pelada mais rápida, justa e simples de usar no celular ou na web.',
       bullets: [
         'Visual premium com foco em desempenho e confiança.',
-        'Fluxo simples para cadastrar, montar partida e acompanhar rankings.',
+        'Fluxo simples para cadastrar, organizar, montar partida e acompanhar rankings.',
       ],
     ),
   ];
@@ -77,22 +92,42 @@ class HelpPage extends StatelessWidget {
     _FaqItemData(
       question: 'Como montar times equilibrados?',
       answer:
-          'Cadastre os jogadores com atributos realistas, selecione a quantidade exata de atletas para a partida e use o modo de divisão que melhor combina com o contexto do jogo.',
+      'Cadastre os jogadores com atributos realistas, selecione o grupo correto, escolha a quantidade exata de atletas e use o modo de divisão que melhor combina com o contexto do jogo.',
+    ),
+    _FaqItemData(
+      question: 'O que são grupos?',
+      answer:
+      'Grupos são formas de organizar seus atletas por pelada, campeonato ou turma. Eles evitam que jogadores de contextos diferentes fiquem misturados na hora de montar partidas ou ver rankings.',
+    ),
+    _FaqItemData(
+      question: 'Posso ter vários grupos?',
+      answer:
+      'Sim. Você pode criar grupos diferentes, como "Futebol de quarta", "Pelada do sábado" ou "Campeonato interno", e vincular os atletas ao grupo correto.',
+    ),
+    _FaqItemData(
+      question: 'O que acontece ao excluir um grupo?',
+      answer:
+      'Quando um grupo é removido, todos os jogadores vinculados a ele também são excluídos. Por isso, o app mostra um aviso antes da confirmação.',
     ),
     _FaqItemData(
       question: 'Posso editar jogadores depois?',
       answer:
-          'Sim. A tela de jogadores permite ajustar nome, posição, modalidade e atributos sempre que voce quiser refinar os dados.',
+      'Sim. A tela de jogadores permite ajustar nome, grupo, posição, modalidade e atributos sempre que você quiser refinar os dados.',
     ),
     _FaqItemData(
       question: 'Como o ranking é calculado?',
       answer:
-          'O ranking geral considera o overall do jogador.',
+      'O ranking geral considera o overall do jogador. Também é possível analisar categorias específicas, como ataque, defesa e atributos físicos.',
+    ),
+    _FaqItemData(
+      question: 'Como melhorar a precisão dos times?',
+      answer:
+      'Use notas realistas, mantenha posições atualizadas e organize os atletas por grupo. Quanto melhores forem os dados cadastrados, mais coerente será a divisão dos times.',
     ),
     _FaqItemData(
       question: 'Quantos jogadores posso cadastrar?',
       answer:
-          'Não há limite prático para uso comum. O ideal e manter a base organizada para facilitar busca, seleção e leitura dos rankings.',
+      'Não há limite prático para uso comum. O ideal é manter a base organizada por grupos para facilitar busca, seleção e leitura dos rankings.',
     ),
   ];
 
@@ -142,7 +177,8 @@ class HelpPage extends StatelessWidget {
         child: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final contentMaxWidth = constraints.maxWidth > 860 ? 860.0 : double.infinity;
+              final contentMaxWidth =
+              constraints.maxWidth > 860 ? 860.0 : double.infinity;
 
               return SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
@@ -178,10 +214,10 @@ class _AppBarTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return const Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
-      children: const [
+      children: [
         Text(
           'Splitfoot',
           style: TextStyle(
@@ -239,14 +275,17 @@ class _HelpHeroCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+                  border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.25),
+                  ),
                 ),
                 child: const Text(
-                  'GUIA RAPIDO',
+                  'GUIA RÁPIDO',
                   style: TextStyle(
                     color: AppColors.primary,
                     fontSize: 11,
@@ -262,7 +301,9 @@ class _HelpHeroCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
                   color: Colors.white.withValues(alpha: 0.04),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.07),
+                  ),
                 ),
                 child: const Icon(
                   Icons.help_outline_rounded,
@@ -274,7 +315,7 @@ class _HelpHeroCard extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           const Text(
-            'Tudo que voce precisa para usar o Splitfoot com mais clareza e rapidez.',
+            'Organize jogadores, monte times equilibrados e use o Splitfoot com mais confiança.',
             style: TextStyle(
               color: Colors.white,
               fontSize: 24,
@@ -285,7 +326,7 @@ class _HelpHeroCard extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           const Text(
-            'Encontre orientações sobre cadastro, montagem de partidas, rankings e respostas para as dúvidas mais comuns em um fluxo simples de consultar.',
+            'Veja como cadastrar atletas, usar grupos, montar partidas, acompanhar rankings e manter sua pelada mais organizada.',
             style: TextStyle(
               color: AppColors.textSecondary,
               fontSize: 14,
@@ -298,9 +339,18 @@ class _HelpHeroCard extends StatelessWidget {
             spacing: 12,
             runSpacing: 12,
             children: const [
-              _OverviewBadge(icon: Icons.menu_book_rounded, label: 'Guia por sseções'),
-              _OverviewBadge(icon: Icons.flash_on_rounded, label: 'Leitura rápida'),
-              _OverviewBadge(icon: Icons.verified_rounded, label: 'Uso com confiança'),
+              _OverviewBadge(
+                icon: Icons.menu_book_rounded,
+                label: 'Guia por seções',
+              ),
+              _OverviewBadge(
+                icon: Icons.folder_rounded,
+                label: 'Grupos organizados',
+              ),
+              _OverviewBadge(
+                icon: Icons.verified_rounded,
+                label: 'Uso com confiança',
+              ),
             ],
           ),
         ],
@@ -380,10 +430,10 @@ class _SectionsGrid extends StatelessWidget {
               children: sections
                   .map(
                     (section) => SizedBox(
-                      width: itemWidth,
-                      child: _HelpSectionCard(section: section),
-                    ),
-                  )
+                  width: itemWidth,
+                  child: _HelpSectionCard(section: section),
+                ),
+              )
                   .toList(),
             );
           },
@@ -456,7 +506,7 @@ class _HelpSectionCard extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           ...section.bullets.map(
-            (bullet) => Padding(
+                (bullet) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -558,8 +608,9 @@ class _FaqSection extends StatelessWidget {
           const SizedBox(height: 18),
           ...List.generate(
             items.length,
-            (index) => Padding(
-              padding: EdgeInsets.only(bottom: index == items.length - 1 ? 0 : 12),
+                (index) => Padding(
+              padding:
+              EdgeInsets.only(bottom: index == items.length - 1 ? 0 : 12),
               child: _FaqTile(item: items[index]),
             ),
           ),
@@ -589,12 +640,17 @@ class _FaqTile extends StatelessWidget {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(22),
           child: ExpansionTile(
-            tilePadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+            tilePadding:
+            const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
             childrenPadding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
             iconColor: AppColors.primary,
             collapsedIconColor: Colors.white.withValues(alpha: 0.72),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-            collapsedShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(22),
+            ),
+            collapsedShape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(22),
+            ),
             title: Text(
               item.question,
               style: const TextStyle(
@@ -656,7 +712,7 @@ class _AboutFooterCard extends StatelessWidget {
           _MetaRow(
             icon: Icons.person_rounded,
             label: 'Desenvolvido por',
-            value: 'Joao Lobler',
+            value: 'João Lobler',
           ),
           SizedBox(height: 12),
           _MetaRow(

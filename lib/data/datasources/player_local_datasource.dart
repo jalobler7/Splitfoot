@@ -23,11 +23,13 @@ class PlayerLocalDataSource {
 
   bool isNameUnique(
     String name,
-    String sport, {
+    String sport,
+    String teamGroupId, {
     String? excludePlayerId,
   }) {
     final normalizedName = _normalizeName(name);
     final normalizedSport = _normalizeSport(sport);
+    final normalizedGroupId = _normalizeGroupId(teamGroupId);
 
     return _box.values.every((player) {
       if (excludePlayerId != null && player.id == excludePlayerId) {
@@ -36,7 +38,9 @@ class PlayerLocalDataSource {
 
       final sameSport = _normalizeSport(player.sport) == normalizedSport;
       final sameName = _normalizeName(player.name) == normalizedName;
-      return !(sameSport && sameName);
+      final sameGroup =
+          _normalizeGroupId(player.teamGroupId) == normalizedGroupId;
+      return !(sameSport && sameName && sameGroup);
     });
   }
 
@@ -59,9 +63,20 @@ class PlayerLocalDataSource {
     _validateSkill(player.defense, 'Defesa');
     _validateSkill(player.stamina, 'Folego');
 
-    if (!isNameUnique(player.name, player.sport, excludePlayerId: excludePlayerId)) {
+    if (player.teamGroupId.trim().isEmpty) {
       throw const PlayerValidationException(
-        'Ja existe um jogador com este nome neste esporte.',
+        'Selecione um grupo para o atleta.',
+      );
+    }
+
+    if (!isNameUnique(
+      player.name,
+      player.sport,
+      player.teamGroupId,
+      excludePlayerId: excludePlayerId,
+    )) {
+      throw const PlayerValidationException(
+        'Ja existe um jogador com este nome neste esporte e grupo.',
       );
     }
   }
@@ -79,6 +94,10 @@ class PlayerLocalDataSource {
   }
 
   static String _normalizeSport(String value) {
+    return value.trim().toLowerCase();
+  }
+
+  static String _normalizeGroupId(String value) {
     return value.trim().toLowerCase();
   }
 }

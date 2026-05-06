@@ -1,8 +1,11 @@
 import 'package:divide_time/app/routes/app_routes.dart';
 import 'package:divide_time/app/theme/app_colors.dart';
 import 'package:divide_time/data/datasources/player_local_datasource.dart';
+import 'package:divide_time/data/datasources/team_group_local_datasource.dart';
 import 'package:divide_time/data/models/player_model.dart';
+import 'package:divide_time/data/models/team_group_model.dart';
 import 'package:divide_time/widgets/player_visuals.dart';
+import 'package:divide_time/widgets/groups/group_form_dialog.dart';
 import 'package:divide_time/widgets/players/player_form_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -16,15 +19,18 @@ class PlayersPage extends StatefulWidget {
 
 class _PlayersPageState extends State<PlayersPage> {
   final PlayerLocalDataSource _dataSource = PlayerLocalDataSource();
+  final TeamGroupLocalDataSource _groupDataSource = TeamGroupLocalDataSource();
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
   List<PlayerModel> _allPlayers = [];
   List<PlayerModel> _filteredPlayers = [];
+  List<TeamGroupModel> _groups = [];
 
   String _searchQuery = '';
   final Set<String> _selectedPositions = {};
   String? _selectedSport;
+  String? _selectedGroupId;
   int _currentPage = 0;
   bool _isHeaderCompact = false;
   static const int _pageSize = 5;
@@ -32,11 +38,10 @@ class _PlayersPageState extends State<PlayersPage> {
   static const List<String> _sportOptions = ['Futsal', 'Fut7', 'Fut11'];
 
   List<String> get _availablePositions {
+    final scopedPlayers = _playersForSelectedGroup();
     final playersBySport = _selectedSport == null
-        ? _allPlayers
-        : _allPlayers
-              .where((player) => player.sport == _selectedSport)
-              .toList();
+        ? scopedPlayers
+        : scopedPlayers.where((player) => player.sport == _selectedSport).toList();
 
     final positions = playersBySport.map((player) => player.position).toSet();
     final orderedPositions = positions.toList()..sort();
@@ -81,15 +86,50 @@ class _PlayersPageState extends State<PlayersPage> {
 
   void _loadPlayers() {
     final players = _dataSource.getAllPlayers();
+    final groups = _groupDataSource.getAllGroups();
 
     _updateFilteredPlayers(() {
       _allPlayers = players;
+      _groups = groups;
+      _selectedGroupId = _resolveSelectedGroupId(groups);
       _syncSelectedPositionsWithAvailable();
     });
   }
 
+  String? _resolveSelectedGroupId(List<TeamGroupModel> groups) {
+    if (groups.isEmpty) {
+      return null;
+    }
+
+    final selectedId = _selectedGroupId;
+    if (selectedId != null && groups.any((group) => group.id == selectedId)) {
+      return selectedId;
+    }
+
+    return groups.first.id;
+  }
+
+  List<PlayerModel> _playersForSelectedGroup() {
+    if (_selectedGroupId == null) {
+      return const [];
+    }
+
+    return _allPlayers
+        .where((player) => player.teamGroupId == _selectedGroupId)
+        .toList();
+  }
+
+  String _groupNameFor(String groupId) {
+    for (final group in _groups) {
+      if (group.id == groupId) {
+        return group.name;
+      }
+    }
+    return 'Grupo';
+  }
+
   List<PlayerModel> _applyFilters() {
-    final filtered = _allPlayers.where((player) {
+    final filtered = _playersForSelectedGroup().where((player) {
       final matchesName =
           _searchQuery.isEmpty ||
           player.name.toLowerCase().contains(_searchQuery);
@@ -127,6 +167,19 @@ class _PlayersPageState extends State<PlayersPage> {
 
     _updateFilteredPlayers(() {
       _selectedSport = sport;
+      _syncSelectedPositionsWithAvailable();
+    });
+  }
+
+  void _onGroupChanged(String? groupId) {
+    if (_selectedGroupId == groupId) return;
+
+    _searchController.clear();
+    _updateFilteredPlayers(() {
+      _selectedGroupId = groupId;
+      _selectedSport = null;
+      _searchQuery = '';
+      _selectedPositions.clear();
       _syncSelectedPositionsWithAvailable();
     });
   }
@@ -179,9 +232,16 @@ class _PlayersPageState extends State<PlayersPage> {
   }
 
   void _openAddPlayerDialog() {
+    if (_groups.isEmpty) {
+      _showGroupRequiredMessage();
+      return;
+    }
+
     showDialog(
       context: context,
       builder: (_) => PlayerFormDialog(
+        availableGroups: _groups,
+        onCreateGroupRequested: _createGroupFromDialog,
         onSave: (player) async {
           await _dataSource.addPlayer(player);
           _loadPlayers();
@@ -195,10 +255,40 @@ class _PlayersPageState extends State<PlayersPage> {
       context: context,
       builder: (_) => PlayerFormDialog(
         initialPlayer: player,
+        availableGroups: _groups,
+        onCreateGroupRequested: _createGroupFromDialog,
         onSave: (updatedPlayer) async {
           await _dataSource.updatePlayer(updatedPlayer);
           _loadPlayers();
         },
+      ),
+    );
+  }
+
+  Future<TeamGroupModel?> _createGroupFromDialog() async {
+    final createdGroup = await showDialog<TeamGroupModel>(
+      context: context,
+      builder: (_) => GroupFormDialog(
+        title: 'Criar grupo',
+        onSave: (group) async {
+          await _groupDataSource.addGroup(group);
+        },
+      ),
+    );
+
+    if (createdGroup == null) {
+      return null;
+    }
+
+    _loadPlayers();
+    _onGroupChanged(createdGroup.id);
+    return createdGroup;
+  }
+
+  void _showGroupRequiredMessage() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Crie um grupo antes de cadastrar atletas.'),
       ),
     );
   }
@@ -288,6 +378,12 @@ class _PlayersPageState extends State<PlayersPage> {
                     onClear: () => _searchController.clear(),
                     compact: _isHeaderCompact,
                   ),
+                  groupDropdown: _GroupDropdown(
+                    value: _selectedGroupId,
+                    items: _groups,
+                    compact: _isHeaderCompact,
+                    onChanged: _onGroupChanged,
+                  ),
                   sportDropdown: _SportDropdown(
                     value: _selectedSport,
                     items: _sportOptions,
@@ -350,6 +446,15 @@ class _PlayersPageState extends State<PlayersPage> {
       );
     }
 
+    if (_groups.isEmpty) {
+      return const _EmptyState(
+        key: ValueKey('empty-groups'),
+        icon: Icons.folder_copy_rounded,
+        title: 'Nenhum grupo cadastrado',
+        subtitle: 'Crie um grupo para organizar e visualizar seus atletas.',
+      );
+    }
+
     if (_filteredPlayers.isEmpty) {
       return const _EmptyState(
         key: ValueKey('empty-filtered'),
@@ -367,6 +472,7 @@ class _PlayersPageState extends State<PlayersPage> {
         ..add(
           _PlayerCard(
             player: player,
+            groupName: _groupNameFor(player.teamGroupId),
             onEdit: () => _openEditPlayerDialog(player),
             onDelete: () => _confirmDeletePlayer(player),
           ),
@@ -430,6 +536,7 @@ class _PlayersHeader extends StatelessWidget {
     required this.filteredCount,
     required this.isCompact,
     required this.searchField,
+    required this.groupDropdown,
     required this.sportDropdown,
     required this.positionsContent,
     required this.positionSubtitle,
@@ -440,6 +547,7 @@ class _PlayersHeader extends StatelessWidget {
   final int filteredCount;
   final bool isCompact;
   final Widget searchField;
+  final Widget groupDropdown;
   final Widget sportDropdown;
   final Widget positionsContent;
   final String positionSubtitle;
@@ -518,6 +626,12 @@ class _PlayersHeader extends StatelessWidget {
             height: isCompact ? 12 : 18,
           ),
           searchField,
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            height: isCompact ? 10 : 14,
+          ),
+          groupDropdown,
           AnimatedContainer(
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeOutCubic,
@@ -717,6 +831,76 @@ class _SportDropdown extends StatelessWidget {
   }
 }
 
+class _GroupDropdown extends StatelessWidget {
+  const _GroupDropdown({
+    required this.value,
+    required this.items,
+    required this.onChanged,
+    required this.compact,
+  });
+
+  final String? value;
+  final List<TeamGroupModel> items;
+  final ValueChanged<String?> onChanged;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<String>(
+      value: value,
+      dropdownColor: const Color(0xFF161C1F),
+      borderRadius: BorderRadius.circular(22),
+      icon: Icon(
+        Icons.keyboard_arrow_down_rounded,
+        color: Colors.white.withValues(alpha: 0.72),
+      ),
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 15,
+        fontWeight: FontWeight.w600,
+      ),
+      decoration: InputDecoration(
+        labelText: 'Selecionar grupo',
+        labelStyle: TextStyle(
+          color: Colors.white.withValues(alpha: 0.58),
+          fontWeight: FontWeight.w500,
+        ),
+        prefixIcon: Icon(
+          Icons.folder_copy_rounded,
+          color: AppColors.primary.withValues(alpha: 0.88),
+          size: 22,
+        ),
+        filled: true,
+        fillColor: const Color(0xFF141A1D),
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: 18,
+          vertical: compact ? 14 : 18,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(22),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(22),
+          borderSide: BorderSide(
+            color: AppColors.primary.withValues(alpha: 0.75),
+            width: 1.4,
+          ),
+        ),
+      ),
+      items: items
+          .map(
+            (group) => DropdownMenuItem<String>(
+              value: group.id,
+              child: Text(group.name),
+            ),
+          )
+          .toList(),
+      onChanged: onChanged,
+    );
+  }
+}
+
 class _SectionLabel extends StatelessWidget {
   const _SectionLabel({
     required this.title,
@@ -853,11 +1037,13 @@ class _PositionChip extends StatelessWidget {
 class _PlayerCard extends StatelessWidget {
   const _PlayerCard({
     required this.player,
+    required this.groupName,
     required this.onEdit,
     required this.onDelete,
   });
 
   final PlayerModel player;
+  final String groupName;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
@@ -915,6 +1101,10 @@ class _PlayerCard extends StatelessWidget {
                             icon: Icons.shield_outlined,
                             label: player.position,
                             isPosition: true,
+                          ),
+                          _MetaPill(
+                            icon: Icons.folder_copy_rounded,
+                            label: groupName,
                           ),
                         ],
                       ),

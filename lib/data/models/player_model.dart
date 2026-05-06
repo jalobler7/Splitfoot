@@ -26,6 +26,9 @@ class PlayerModel extends HiveObject {
   @HiveField(6)
   final String sport;
 
+  @HiveField(7)
+  final String teamGroupId;
+
   PlayerModel({
     required this.id,
     required this.name,
@@ -34,6 +37,7 @@ class PlayerModel extends HiveObject {
     required this.stamina,
     required this.position,
     required this.sport,
+    required this.teamGroupId,
   });
 
   int get overall => OverallUtils.calculateOverall(
@@ -50,6 +54,7 @@ class PlayerModel extends HiveObject {
     int? stamina,
     String? position,
     String? sport,
+    String? teamGroupId,
   }) {
     return PlayerModel(
       id: id ?? this.id,
@@ -59,6 +64,7 @@ class PlayerModel extends HiveObject {
       stamina: stamina ?? this.stamina,
       position: position ?? this.position,
       sport: sport ?? this.sport,
+      teamGroupId: teamGroupId ?? this.teamGroupId,
     );
   }
 }
