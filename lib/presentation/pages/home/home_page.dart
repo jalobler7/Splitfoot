@@ -48,20 +48,26 @@ class HomePage extends StatelessWidget {
                         children: [
                           Expanded(
                             child: _SecondaryActionButton(
-                              icon: Icons.groups_rounded,
-                              label: 'Jogadores',
-                              onTap: () => context.go(AppRoutes.players),
+                              icon: Icons.folder_copy_rounded,
+                              label: 'Meus grupos',
+                              onTap: () => context.go(AppRoutes.teamGroups),
                             ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: _SecondaryActionButton(
-                              icon: Icons.leaderboard_rounded,
-                              label: 'Rankings',
-                              onTap: () => context.go(AppRoutes.rankings),
+                              icon: Icons.groups_rounded,
+                              label: 'Jogadores',
+                              onTap: () => context.go(AppRoutes.players),
                             ),
                           ),
                         ],
+                      ),
+                      const SizedBox(height: 12),
+                      _SecondaryActionButton(
+                        icon: Icons.leaderboard_rounded,
+                        label: 'Rankings',
+                        onTap: () => context.go(AppRoutes.rankings),
                       ),
                       const SizedBox(height: 12),
                       _SecondaryActionButton(

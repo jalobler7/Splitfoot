@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 import '../../../data/datasources/player_local_datasource.dart';
 import '../../../data/models/player_model.dart';
+import '../../../data/models/team_group_model.dart';
 
 class PlayerFormDialog extends StatefulWidget {
   final Future<void> Function(PlayerModel player) onSave;
   final PlayerModel? initialPlayer;
+  final List<TeamGroupModel> availableGroups;
+  final Future<TeamGroupModel?> Function() onCreateGroupRequested;
 
   const PlayerFormDialog({
     super.key,
     required this.onSave,
+    required this.availableGroups,
+    required this.onCreateGroupRequested,
     this.initialPlayer,
   });
 
@@ -26,6 +31,8 @@ class _PlayerFormDialogState extends State<PlayerFormDialog> {
 
   late String _selectedSport;
   late String _selectedPosition;
+  late List<TeamGroupModel> _groups;
+  String? _selectedGroupId;
   bool _isSaving = false;
 
   final Map<String, List<String>> _positionsBySport = {
@@ -68,11 +75,17 @@ class _PlayerFormDialogState extends State<PlayerFormDialog> {
         TextEditingController(text: player?.stamina.toString() ?? '');
 
     _selectedSport = player?.sport ?? 'Futsal';
+    _groups = List<TeamGroupModel>.from(widget.availableGroups);
 
     final availablePositions = _positionsBySport[_selectedSport]!;
     _selectedPosition = availablePositions.contains(player?.position)
         ? player!.position
         : availablePositions.first;
+    _selectedGroupId = player?.teamGroupId;
+
+    if (_selectedGroupId == null && _groups.isNotEmpty) {
+      _selectedGroupId = _groups.first.id;
+    }
   }
 
   @override
@@ -112,6 +125,7 @@ class _PlayerFormDialogState extends State<PlayerFormDialog> {
       stamina: int.parse(_staminaController.text.trim()),
       position: _selectedPosition,
       sport: _selectedSport,
+      teamGroupId: _selectedGroupId ?? '',
     );
 
     setState(() {
@@ -140,6 +154,19 @@ class _PlayerFormDialogState extends State<PlayerFormDialog> {
         _isSaving = false;
       });
     }
+  }
+
+  Future<void> _createGroupFromDialog() async {
+    final createdGroup = await widget.onCreateGroupRequested();
+    if (!mounted || createdGroup == null) return;
+
+    setState(() {
+      final alreadyExists = _groups.any((group) => group.id == createdGroup.id);
+      if (!alreadyExists) {
+        _groups.add(createdGroup);
+      }
+      _selectedGroupId = createdGroup.id;
+    });
   }
 
   String? _validateName(String? value) {
@@ -183,6 +210,75 @@ class _PlayerFormDialogState extends State<PlayerFormDialog> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (_groups.isEmpty) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.orange.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Crie um grupo antes de cadastrar atletas.',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 10),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: OutlinedButton(
+                          onPressed: _isSaving ? null : _createGroupFromDialog,
+                          child: const Text('Criar grupo'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ] else ...[
+                DropdownButtonFormField<String>(
+                  value: _selectedGroupId,
+                  decoration: const InputDecoration(
+                    labelText: 'Selecionar grupo',
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Selecione um grupo';
+                    }
+                    return null;
+                  },
+                  items: _groups
+                      .map(
+                        (group) => DropdownMenuItem(
+                          value: group.id,
+                          child: Text(group.name),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: _isSaving
+                      ? null
+                      : (value) {
+                          setState(() {
+                            _selectedGroupId = value;
+                          });
+                        },
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: _isSaving ? null : _createGroupFromDialog,
+                    icon: const Icon(Icons.add_rounded),
+                    label: const Text('Criar grupo'),
+                  ),
+                ),
+                const SizedBox(height: 4),
+              ],
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(
@@ -266,7 +362,7 @@ class _PlayerFormDialogState extends State<PlayerFormDialog> {
           child: const Text('Cancelar'),
         ),
         ElevatedButton(
-          onPressed: _isSaving ? null : _save,
+          onPressed: _isSaving || _groups.isEmpty ? null : _save,
           child: Text(_isEditing ? 'Salvar alteracoes' : 'Salvar'),
         ),
       ],

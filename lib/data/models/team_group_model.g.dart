@@ -1,53 +1,38 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'player_model.dart';
+part of 'team_group_model.dart';
 
 // **************************************************************************
 // TypeAdapterGenerator
 // **************************************************************************
 
-class PlayerModelAdapter extends TypeAdapter<PlayerModel> {
+class TeamGroupModelAdapter extends TypeAdapter<TeamGroupModel> {
   @override
-  final int typeId = 0;
+  final int typeId = 1;
 
   @override
-  PlayerModel read(BinaryReader reader) {
+  TeamGroupModel read(BinaryReader reader) {
     final numOfFields = reader.readByte();
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return PlayerModel(
+    return TeamGroupModel(
       id: fields[0] as String,
       name: fields[1] as String,
-      attack: fields[2] as int,
-      defense: fields[3] as int,
-      stamina: fields[4] as int,
-      position: fields[5] as String,
-      sport: fields[6] as String,
-      teamGroupId: fields[7] as String? ?? '',
+      createdAt: fields[2] as DateTime,
     );
   }
 
   @override
-  void write(BinaryWriter writer, PlayerModel obj) {
+  void write(BinaryWriter writer, TeamGroupModel obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(3)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
       ..write(obj.name)
       ..writeByte(2)
-      ..write(obj.attack)
-      ..writeByte(3)
-      ..write(obj.defense)
-      ..writeByte(4)
-      ..write(obj.stamina)
-      ..writeByte(5)
-      ..write(obj.position)
-      ..writeByte(6)
-      ..write(obj.sport)
-      ..writeByte(7)
-      ..write(obj.teamGroupId);
+      ..write(obj.createdAt);
   }
 
   @override
@@ -56,7 +41,7 @@ class PlayerModelAdapter extends TypeAdapter<PlayerModel> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is PlayerModelAdapter &&
+      other is TeamGroupModelAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }
