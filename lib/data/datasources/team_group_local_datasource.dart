@@ -52,18 +52,24 @@ class TeamGroupLocalDataSource {
     await _groupBox.put(group.id, group);
   }
 
-  Future<void> deleteGroup(String groupId) async {
-    final hasPlayers = _playerBox.values.any(
-      (player) => player.teamGroupId == groupId,
-    );
+  Future<int> deleteGroupCascade(String groupId) async {
+    final linkedPlayers = _playerBox.values
+        .where((player) => player.teamGroupId == groupId)
+        .toList();
 
-    if (hasPlayers) {
-      throw const TeamGroupValidationException(
-        'Este grupo possui atletas vinculados. Remova ou edite esses atletas antes de excluir o grupo.',
-      );
+    try {
+      for (final player in linkedPlayers) {
+        await _playerBox.delete(player.id);
+      }
+      await _groupBox.delete(groupId);
+    } catch (_) {
+      for (final player in linkedPlayers) {
+        await _playerBox.put(player.id, player);
+      }
+      rethrow;
     }
 
-    await _groupBox.delete(groupId);
+    return linkedPlayers.length;
   }
 
   int countPlayersForGroup(String groupId) {

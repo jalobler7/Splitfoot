@@ -18,6 +18,7 @@ class _TeamGroupsPageState extends State<TeamGroupsPage> {
   final TeamGroupLocalDataSource _groupDataSource = TeamGroupLocalDataSource();
 
   List<TeamGroupModel> _groups = [];
+  String? _deletingGroupId;
 
   @override
   void initState() {
@@ -57,44 +58,140 @@ class _TeamGroupsPageState extends State<TeamGroupsPage> {
   }
 
   Future<void> _confirmDeleteGroup(TeamGroupModel group) async {
-    await showDialog<void>(
+    final deletedPlayers = await showDialog<int>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xFF14191B),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Text('Excluir grupo'),
-        content: Text(
-          'Tem certeza que deseja excluir ${group.name}?',
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.74)),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancelar'),
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          backgroundColor: const Color(0xFF14191B),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          title: const Text(
+            'Excluir grupo',
+            style: TextStyle(fontWeight: FontWeight.w700),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.danger,
-              foregroundColor: Colors.white,
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.danger.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: AppColors.danger.withValues(alpha: 0.28),
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(top: 1),
+                      child: Icon(
+                        Icons.warning_amber_rounded,
+                        color: AppColors.danger,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Todos os jogadores linkados a esse grupo serão eliminados. Deseja continuar?',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.86),
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                group.name,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: _deletingGroupId == group.id
+                  ? null
+                  : () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancelar'),
             ),
-            onPressed: () async {
-              try {
-                await _groupDataSource.deleteGroup(group.id);
-                if (!mounted) return;
-                _loadGroups();
-                if (!dialogContext.mounted) return;
-                Navigator.of(dialogContext).pop();
-              } on TeamGroupValidationException catch (e) {
-                if (!dialogContext.mounted) return;
-                Navigator.of(dialogContext).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(e.message)),
-                );
-              }
-            },
-            child: const Text('Excluir'),
-          ),
-        ],
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.danger,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: AppColors.danger.withValues(alpha: 0.55),
+                disabledForegroundColor: Colors.white70,
+              ),
+              onPressed: _deletingGroupId == group.id
+                  ? null
+                  : () async {
+                      setState(() {
+                        _deletingGroupId = group.id;
+                      });
+                      setDialogState(() {});
+
+                      try {
+                        final removedPlayers = await _groupDataSource
+                            .deleteGroupCascade(group.id);
+                        if (!mounted) return;
+                        _loadGroups();
+                        if (dialogContext.mounted) {
+                          Navigator.of(dialogContext).pop(removedPlayers);
+                        }
+                      } catch (_) {
+                        if (!mounted) return;
+                        if (dialogContext.mounted) {
+                          Navigator.of(dialogContext).pop();
+                        }
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Nao foi possivel excluir o grupo. Tente novamente.',
+                            ),
+                          ),
+                        );
+                      } finally {
+                        if (mounted) {
+                          setState(() {
+                            _deletingGroupId = null;
+                          });
+                        }
+                      }
+                    },
+              child: _deletingGroupId == group.id
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Text('Excluir'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (!mounted || deletedPlayers == null) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          deletedPlayers == 0
+              ? 'Grupo excluido com sucesso.'
+              : 'Grupo excluido com $deletedPlayers jogador(es) removido(s).',
+        ),
       ),
     );
   }
@@ -176,6 +273,7 @@ class _TeamGroupsPageState extends State<TeamGroupsPage> {
                               playersCount: playersCount,
                               onEdit: () => _openEditGroupDialog(group),
                               onDelete: () => _confirmDeleteGroup(group),
+                              isDeleting: _deletingGroupId == group.id,
                             );
                           },
                         ),
@@ -195,12 +293,14 @@ class _GroupCard extends StatelessWidget {
     required this.playersCount,
     required this.onEdit,
     required this.onDelete,
+    this.isDeleting = false,
   });
 
   final TeamGroupModel group;
   final int playersCount;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final bool isDeleting;
 
   @override
   Widget build(BuildContext context) {
@@ -252,12 +352,24 @@ class _GroupCard extends StatelessWidget {
             ),
           ),
           IconButton(
-            onPressed: onEdit,
+            onPressed: isDeleting ? null : onEdit,
             icon: const Icon(Icons.edit_outlined, color: Colors.white),
           ),
           IconButton(
-            onPressed: onDelete,
-            icon: const Icon(Icons.delete_outline_rounded, color: AppColors.danger),
+            onPressed: isDeleting ? null : onDelete,
+            icon: isDeleting
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.2,
+                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.danger),
+                    ),
+                  )
+                : const Icon(
+                    Icons.delete_outline_rounded,
+                    color: AppColors.danger,
+                  ),
           ),
         ],
       ),
