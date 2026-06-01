@@ -1,6 +1,5 @@
 import 'package:divide_time/app/routes/app_routes.dart';
 import 'package:divide_time/app/theme/app_colors.dart';
-import 'package:divide_time/widgets/developer_credit_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -28,9 +27,14 @@ class HomePage extends StatelessWidget {
           child: LayoutBuilder(
             builder: (context, constraints) {
               return SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
+                ),
                 child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: constraints.maxHeight - 32),
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight - 32,
+                  ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -76,8 +80,6 @@ class HomePage extends StatelessWidget {
                         balanceTrailingSpace: true,
                         onTap: () => context.go(AppRoutes.help),
                       ),
-                      const SizedBox(height: 24),
-                      const DeveloperCreditWidget(),
                     ],
                   ),
                 ),
@@ -105,10 +107,7 @@ class _HeroSection extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF17231D),
-            Color(0xFF101915),
-          ],
+          colors: [Color(0xFF17231D), Color(0xFF101915)],
         ),
         boxShadow: const [
           BoxShadow(
@@ -126,7 +125,9 @@ class _HeroSection extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColors.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.25),
+              ),
             ),
             child: const Text(
               'FUTEBOL AMADOR',
@@ -147,7 +148,9 @@ class _HeroSection extends StatelessWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(18),
                   color: AppColors.primary.withValues(alpha: 0.14),
-                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.22)),
+                  border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.22),
+                  ),
                 ),
                 child: const Icon(
                   Icons.sports_soccer_rounded,
@@ -208,10 +211,7 @@ class _PrimaryActionButton extends StatelessWidget {
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF34D46A),
-              Color(0xFF169A49),
-            ],
+            colors: [Color(0xFF34D46A), Color(0xFF169A49)],
           ),
           boxShadow: [
             BoxShadow(

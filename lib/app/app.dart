@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'routes/app_routes.dart';
 import 'theme/app_theme.dart';
+import '../widgets/global_footer_widget.dart';
 
 class DivideTimeApp extends StatelessWidget {
   const DivideTimeApp({super.key});
@@ -13,6 +13,14 @@ class DivideTimeApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
       routerConfig: appRouter,
+      builder: (context, child) {
+        return Column(
+          children: [
+            Expanded(child: child ?? const SizedBox.shrink()),
+            const GlobalFooterWidget(),
+          ],
+        );
+      },
     );
   }
 }

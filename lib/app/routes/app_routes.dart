@@ -4,6 +4,8 @@ import '../../domain/entities/team_result.dart';
 import '../../presentation/pages/help/help_page.dart';
 import '../../presentation/pages/groups/team_groups_page.dart';
 import '../../presentation/pages/home/home_page.dart';
+import '../../presentation/pages/legal/privacy_policy_page.dart';
+import '../../presentation/pages/legal/terms_of_use_page.dart';
 import '../../presentation/pages/match_setup/match_setup_page.dart';
 import '../../presentation/pages/players/players_page.dart';
 import '../../presentation/pages/ranking/ranking_page.dart';
@@ -19,6 +21,8 @@ class AppRoutes {
   static const rankings = '/rankings';
   static const help = '/help';
   static const teamGroups = '/team-groups';
+  static const privacyPolicy = '/privacy-policy';
+  static const termsOfUse = '/terms-of-use';
 }
 
 final GoRouter appRouter = GoRouter(
@@ -43,6 +47,14 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: AppRoutes.teamGroups,
       builder: (context, state) => const TeamGroupsPage(),
+    ),
+    GoRoute(
+      path: AppRoutes.privacyPolicy,
+      builder: (context, state) => const PrivacyPolicyPage(),
+    ),
+    GoRoute(
+      path: AppRoutes.termsOfUse,
+      builder: (context, state) => const TermsOfUsePage(),
     ),
     GoRoute(
       path: AppRoutes.result,
