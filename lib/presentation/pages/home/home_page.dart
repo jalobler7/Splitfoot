@@ -1,5 +1,6 @@
 import 'package:divide_time/app/routes/app_routes.dart';
 import 'package:divide_time/app/theme/app_colors.dart';
+import 'package:divide_time/widgets/global_footer_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -23,69 +24,78 @@ class HomePage extends StatelessWidget {
             ],
           ),
         ),
-        child: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 16,
-                ),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minHeight: constraints.maxHeight - 32,
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: 8),
-                      _HeroSection(theme: theme),
-                      const SizedBox(height: 28),
-                      _PrimaryActionButton(
-                        icon: Icons.sports_soccer_rounded,
-                        label: 'Montar Partida',
-                        onTap: () => context.go(AppRoutes.matchSetup),
+        child: Column(
+          children: [
+            Expanded(
+              child: SafeArea(
+                bottom: false,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    return SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 16,
                       ),
-                      const SizedBox(height: 18),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _SecondaryActionButton(
-                              icon: Icons.folder_copy_rounded,
-                              label: 'Meus grupos',
-                              onTap: () => context.go(AppRoutes.teamGroups),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: constraints.maxHeight - 32,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const SizedBox(height: 8),
+                            _HeroSection(theme: theme),
+                            const SizedBox(height: 28),
+                            _PrimaryActionButton(
+                              icon: Icons.sports_soccer_rounded,
+                              label: 'Montar Partida',
+                              onTap: () => context.go(AppRoutes.matchSetup),
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _SecondaryActionButton(
-                              icon: Icons.groups_rounded,
-                              label: 'Jogadores',
-                              onTap: () => context.go(AppRoutes.players),
+                            const SizedBox(height: 18),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _SecondaryActionButton(
+                                    icon: Icons.folder_copy_rounded,
+                                    label: 'Meus grupos',
+                                    onTap: () =>
+                                        context.go(AppRoutes.teamGroups),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _SecondaryActionButton(
+                                    icon: Icons.groups_rounded,
+                                    label: 'Jogadores',
+                                    onTap: () => context.go(AppRoutes.players),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 12),
+                            _SecondaryActionButton(
+                              icon: Icons.leaderboard_rounded,
+                              label: 'Rankings',
+                              onTap: () => context.go(AppRoutes.rankings),
+                            ),
+                            const SizedBox(height: 12),
+                            _SecondaryActionButton(
+                              icon: Icons.help_outline_rounded,
+                              label: 'Ajuda',
+                              balanceTrailingSpace: true,
+                              onTap: () => context.go(AppRoutes.help),
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 12),
-                      _SecondaryActionButton(
-                        icon: Icons.leaderboard_rounded,
-                        label: 'Rankings',
-                        onTap: () => context.go(AppRoutes.rankings),
-                      ),
-                      const SizedBox(height: 12),
-                      _SecondaryActionButton(
-                        icon: Icons.help_outline_rounded,
-                        label: 'Ajuda',
-                        balanceTrailingSpace: true,
-                        onTap: () => context.go(AppRoutes.help),
-                      ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
-              );
-            },
-          ),
+              ),
+            ),
+            const AppFooter(),
+          ],
         ),
       ),
     );
