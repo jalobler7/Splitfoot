@@ -1,6 +1,6 @@
 import 'package:go_router/go_router.dart';
 import '../../data/models/player_model.dart';
-import '../../domain/entities/team_result.dart';
+import '../../domain/entities/match_result_arguments.dart';
 import '../../presentation/pages/help/help_page.dart';
 import '../../presentation/pages/groups/team_groups_page.dart';
 import '../../presentation/pages/home/home_page.dart';
@@ -59,8 +59,8 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: AppRoutes.result,
       builder: (context, state) {
-        final results = state.extra as List<TeamResult>;
-        return ResultPage(results: results);
+        final arguments = state.extra as MatchResultArguments;
+        return ResultPage(arguments: arguments);
       },
     ),
     GoRoute(

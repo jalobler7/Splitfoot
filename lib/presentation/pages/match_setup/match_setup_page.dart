@@ -7,6 +7,8 @@ import '../../../data/datasources/team_group_local_datasource.dart';
 import '../../../data/models/player_model.dart';
 import '../../../data/models/team_group_model.dart';
 import '../../../domain/entities/team_result.dart';
+import '../../../domain/entities/match_generation_request.dart';
+import '../../../domain/entities/match_result_arguments.dart';
 import '../../../domain/services/team_balance_service.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -31,8 +33,12 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
   BalanceMode _balanceMode = BalanceMode.overallAverage;
   String? _selectedGroupId;
 
-  final TextEditingController _teamAController = TextEditingController(text: '5');
-  final TextEditingController _teamBController = TextEditingController(text: '5');
+  final TextEditingController _teamAController = TextEditingController(
+    text: '5',
+  );
+  final TextEditingController _teamBController = TextEditingController(
+    text: '5',
+  );
   final TextEditingController _searchController = TextEditingController();
 
   String _searchText = '';
@@ -57,7 +63,8 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
 
   String? _resolveSelectedGroupId(List<TeamGroupModel> groups) {
     if (groups.isEmpty) return null;
-    if (_selectedGroupId != null && groups.any((group) => group.id == _selectedGroupId)) {
+    if (_selectedGroupId != null &&
+        groups.any((group) => group.id == _selectedGroupId)) {
       return _selectedGroupId;
     }
     return groups.first.id;
@@ -73,8 +80,17 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
     setState(() {
       if (_selectedPlayers.contains(playerId)) {
         _selectedPlayers.remove(playerId);
-      } else {
+      } else if (_selectedPlayers.length < _expectedTotalPlayers()) {
         _selectedPlayers.add(playerId);
+      }
+    });
+  }
+
+  void _onTeamSizeChanged() {
+    setState(() {
+      final expected = _expectedTotalPlayers();
+      while (_selectedPlayers.length > expected) {
+        _selectedPlayers.remove(_selectedPlayers.last);
       }
     });
   }
@@ -137,7 +153,8 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
   int _expectedTotalPlayers() {
     final teamA = int.tryParse(_teamAController.text) ?? 0;
     final teamB = int.tryParse(_teamBController.text) ?? 0;
-    return teamA + teamB;
+    final total = teamA + teamB;
+    return total > 0 ? total : 0;
   }
 
   int _selectedCount() {
@@ -153,16 +170,10 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
     }
 
     if (selected == expected) {
-      return 'Selecionados: $selected de $expected';
+      return 'Todos os jogadores necessários foram selecionados';
     }
 
-    if (selected < expected) {
-      final missing = expected - selected;
-      return 'Selecionados: $selected de $expected - Faltam $missing';
-    }
-
-    final extra = selected - expected;
-    return 'Selecionados: $selected de $expected - Excedeu $extra';
+    return 'Selecionados: $selected de $expected';
   }
 
   Color _selectionStatusColor(BuildContext context) {
@@ -227,43 +238,21 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
 
     if (selectedPlayersList.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Selecione jogadores suficientes'),
-        ),
+        const SnackBar(content: Text('Selecione jogadores suficientes')),
       );
       return;
     }
 
     try {
-      List<TeamResult> results;
-
-      switch (_balanceMode) {
-        case BalanceMode.overallAverage:
-          results = _teamBalanceService.balanceTopByOverall(
-            players: selectedPlayersList,
-            teamASize: teamA,
-            teamBSize: teamB,
-            limit: 5,
-          );
-          break;
-        case BalanceMode.attributes:
-          results = _teamBalanceService.balanceTopByAttributes(
-            players: selectedPlayersList,
-            teamASize: teamA,
-            teamBSize: teamB,
-            limit: 5,
-          );
-          break;
-        case BalanceMode.positions:
-          results = _teamBalanceService.balanceTopByPosition(
-            players: selectedPlayersList,
-            teamASize: teamA,
-            teamBSize: teamB,
-            sport: _selectedSport,
-            limit: 5,
-          );
-          break;
-      }
+      final request = MatchGenerationRequest(
+        players: selectedPlayersList,
+        sport: _selectedSport,
+        teamASize: teamA,
+        teamBSize: teamB,
+        groupId: _selectedGroupId!,
+        balanceMode: _balanceMode,
+      );
+      final List<TeamResult> results = _teamBalanceService.generate(request);
 
       if (results.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -274,13 +263,14 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
         return;
       }
 
-      context.push(AppRoutes.result, extra: results);
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erro ao gerar times: $e'),
-        ),
+      context.push(
+        AppRoutes.result,
+        extra: MatchResultArguments(request: request, results: results),
       );
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erro ao gerar times: $e')));
     }
   }
 
@@ -306,271 +296,325 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
     }).toList();
 
     final selectionColor = _selectionStatusColor(context);
+    final hasRequiredPlayers =
+        _expectedTotalPlayers() > 0 &&
+        _selectedCount() == _expectedTotalPlayers();
 
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF0B1510),
-              AppColors.background,
-              Color(0xFF0D1117),
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-            child: Column(
-              children: [
-                _SimpleHeader(
-                  onBack: () => context.go(AppRoutes.home),
-                ),
-                const SizedBox(height: 14),
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF111618).withValues(alpha: 0.92),
-                      borderRadius: BorderRadius.circular(30),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x22000000),
-                          blurRadius: 28,
-                          offset: Offset(0, 16),
+      body: Stack(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFF0B1510),
+                  AppColors.background,
+                  Color(0xFF0D1117),
+                ],
+              ),
+            ),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+                child: Column(
+                  children: [
+                    _SimpleHeader(onBack: () => context.go(AppRoutes.home)),
+                    const SizedBox(height: 14),
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: const Color(
+                            0xFF111618,
+                          ).withValues(alpha: 0.92),
+                          borderRadius: BorderRadius.circular(30),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.08),
+                          ),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x22000000),
+                              blurRadius: 28,
+                              offset: Offset(0, 16),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
-                      child: CustomScrollView(
-                        slivers: [
-                          SliverToBoxAdapter(
-                            child: _SectionSurface(
-                              child: Column(
-                                children: [
-                                  const _SectionLabel(
-                                    title: 'Configuração',
-                                    subtitle: 'Defina o esporte, o modo de divisão e o tamanho de cada time.',
-                                  ),
-                                  const SizedBox(height: 14),
-                                  _PremiumDropdown<SportType>(
-                                    value: _selectedSport,
-                                    label: 'Esporte',
-                                    leadingIcon: Icons.sports_soccer_rounded,
-                                    items: SportType.values
-                                        .map(
-                                          (sport) => DropdownMenuItem(
-                                            value: sport,
-                                            child: Text(_sportLabel(sport)),
-                                          ),
-                                        )
-                                        .toList(),
-                                    onChanged: _onSportChanged,
-                                  ),
-                                  const SizedBox(height: 12),
-                                  _PremiumDropdown<String>(
-                                    value: _selectedGroupId,
-                                    label: 'Selecionar grupo',
-                                    leadingIcon: Icons.folder_copy_rounded,
-                                    items: _groups
-                                        .map(
-                                          (group) => DropdownMenuItem(
-                                            value: group.id,
-                                            child: Text(group.name),
-                                          ),
-                                        )
-                                        .toList(),
-                                    onChanged: _groups.isEmpty
-                                        ? (String? _) {}
-                                        : _onGroupChanged,
-                                  ),
-                                  const SizedBox(height: 12),
-                                  _PremiumDropdown<BalanceMode>(
-                                    value: _balanceMode,
-                                    label: 'Modo de divisão',
-                                    leadingIcon: Icons.tune_rounded,
-                                    items: BalanceMode.values
-                                        .map(
-                                          (mode) => DropdownMenuItem(
-                                            value: mode,
-                                            child: Text(_balanceLabel(mode)),
-                                          ),
-                                        )
-                                        .toList(),
-                                    onChanged: (value) {
-                                      if (value == null) return;
-                                      setState(() => _balanceMode = value);
-                                    },
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: _PremiumTextField(
-                                          controller: _teamAController,
-                                          label: 'Time A',
-                                          icon: Icons.groups_2_rounded,
-                                          keyboardType: TextInputType.number,
-                                          onChanged: (_) => setState(() {}),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: _PremiumTextField(
-                                          controller: _teamBController,
-                                          label: 'Time B',
-                                          icon: Icons.groups_2_rounded,
-                                          keyboardType: TextInputType.number,
-                                          onChanged: (_) => setState(() {}),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SliverToBoxAdapter(child: SizedBox(height: 14)),
-                          SliverToBoxAdapter(
-                            child: _SectionSurface(
-                              child: Column(
-                                children: [
-                                  _PremiumTextField(
-                                    controller: _searchController,
-                                    label: 'Buscar atleta por nome',
-                                    icon: Icons.search_rounded,
-                                    suffixIcon: _searchText.isNotEmpty
-                                        ? IconButton(
-                                            onPressed: () => _searchController.clear(),
-                                            icon: Icon(
-                                              Icons.close_rounded,
-                                              color: Colors.white.withValues(alpha: 0.64),
-                                            ),
-                                          )
-                                        : null,
-                                  ),
-                                  const SizedBox(height: 12),
-                                  _SelectionStatusCard(
-                                    text: _selectionStatusText(),
-                                    color: selectionColor,
-                                    selectedCount: _selectedCount(),
-                                    expectedCount: _expectedTotalPlayers(),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SliverToBoxAdapter(child: SizedBox(height: 14)),
-                          SliverToBoxAdapter(
-                            child: Row(
-                              children: [
-                                Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+                          child: CustomScrollView(
+                            slivers: [
+                              SliverToBoxAdapter(
+                                child: _SectionSurface(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        'Atletas deste grupo',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w800,
-                                          letterSpacing: -0.3,
-                                        ),
+                                      const _SectionLabel(
+                                        title: 'Configuração',
+                                        subtitle:
+                                            'Defina o esporte, o modo de divisão e o tamanho de cada time.',
                                       ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        '${visiblePlayers.length} disponiveis em ${_sportLabel(_selectedSport)}',
-                                        style: TextStyle(
-                                          color: Colors.white.withValues(alpha: 0.56),
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w500,
-                                        ),
+                                      const SizedBox(height: 14),
+                                      _PremiumDropdown<SportType>(
+                                        value: _selectedSport,
+                                        label: 'Esporte',
+                                        leadingIcon:
+                                            Icons.sports_soccer_rounded,
+                                        items: SportType.values
+                                            .map(
+                                              (sport) => DropdownMenuItem(
+                                                value: sport,
+                                                child: Text(_sportLabel(sport)),
+                                              ),
+                                            )
+                                            .toList(),
+                                        onChanged: _onSportChanged,
+                                      ),
+                                      const SizedBox(height: 12),
+                                      _PremiumDropdown<String>(
+                                        value: _selectedGroupId,
+                                        label: 'Selecionar grupo',
+                                        leadingIcon: Icons.folder_copy_rounded,
+                                        items: _groups
+                                            .map(
+                                              (group) => DropdownMenuItem(
+                                                value: group.id,
+                                                child: Text(group.name),
+                                              ),
+                                            )
+                                            .toList(),
+                                        onChanged: _groups.isEmpty
+                                            ? (String? _) {}
+                                            : _onGroupChanged,
+                                      ),
+                                      const SizedBox(height: 12),
+                                      _PremiumDropdown<BalanceMode>(
+                                        value: _balanceMode,
+                                        label: 'Modo de divisão',
+                                        leadingIcon: Icons.tune_rounded,
+                                        items: BalanceMode.values
+                                            .map(
+                                              (mode) => DropdownMenuItem(
+                                                value: mode,
+                                                child: Text(
+                                                  _balanceLabel(mode),
+                                                ),
+                                              ),
+                                            )
+                                            .toList(),
+                                        onChanged: (value) {
+                                          if (value == null) return;
+                                          setState(() => _balanceMode = value);
+                                        },
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: _PremiumTextField(
+                                              controller: _teamAController,
+                                              label: 'Time A',
+                                              icon: Icons.groups_2_rounded,
+                                              keyboardType:
+                                                  TextInputType.number,
+                                              onChanged: (_) =>
+                                                  _onTeamSizeChanged(),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: _PremiumTextField(
+                                              controller: _teamBController,
+                                              label: 'Time B',
+                                              icon: Icons.groups_2_rounded,
+                                              keyboardType:
+                                                  TextInputType.number,
+                                              onChanged: (_) =>
+                                                  _onTeamSizeChanged(),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
                                 ),
-                                _InfoBadge(
-                                  icon: Icons.how_to_reg_rounded,
-                                  label: '${_selectedCount()} selecionados',
+                              ),
+                              const SliverToBoxAdapter(
+                                child: SizedBox(height: 14),
+                              ),
+                              SliverToBoxAdapter(
+                                child: _SectionSurface(
+                                  child: Column(
+                                    children: [
+                                      _PremiumTextField(
+                                        controller: _searchController,
+                                        label: 'Buscar atleta por nome',
+                                        icon: Icons.search_rounded,
+                                        suffixIcon: _searchText.isNotEmpty
+                                            ? IconButton(
+                                                onPressed: () =>
+                                                    _searchController.clear(),
+                                                icon: Icon(
+                                                  Icons.close_rounded,
+                                                  color: Colors.white
+                                                      .withValues(alpha: 0.64),
+                                                ),
+                                              )
+                                            : null,
+                                      ),
+                                      const SizedBox(height: 12),
+                                      _SelectionStatusCard(
+                                        text: _selectionStatusText(),
+                                        color: selectionColor,
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ],
-                            ),
-                          ),
-                          const SliverToBoxAdapter(child: SizedBox(height: 12)),
-                          if (_groups.isEmpty)
-                            const SliverToBoxAdapter(
-                              child: _EmptyState(
-                                icon: Icons.folder_copy_rounded,
-                                title: 'Nenhum grupo cadastrado',
-                                subtitle: 'Crie um grupo antes de montar a partida.',
                               ),
-                            )
-                          else if (sportPlayers.isEmpty)
-                            const SliverToBoxAdapter(
-                              child: _EmptyState(
-                                icon: Icons.groups_outlined,
-                                title: 'Nenhum atleta neste grupo para este esporte',
-                                subtitle: 'Selecione outro grupo ou cadastre atletas vinculados a ele.',
+                              const SliverToBoxAdapter(
+                                child: SizedBox(height: 14),
                               ),
-                            )
-                          else if (visiblePlayers.isEmpty)
-                            const SliverToBoxAdapter(
-                              child: _EmptyState(
-                                icon: Icons.search_off_rounded,
-                                title: 'Nenhum jogador encontrado',
-                                subtitle: 'Ajuste a busca para localizar atletas.',
+                              SliverToBoxAdapter(
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Atletas deste grupo',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w800,
+                                              letterSpacing: -0.3,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '${visiblePlayers.length} disponiveis em ${_sportLabel(_selectedSport)}',
+                                            style: TextStyle(
+                                              color: Colors.white.withValues(
+                                                alpha: 0.56,
+                                              ),
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    _InfoBadge(
+                                      icon: Icons.how_to_reg_rounded,
+                                      label: '${_selectedCount()} selecionados',
+                                    ),
+                                  ],
+                                ),
                               ),
-                            )
-                          else
-                            SliverList(
-                              delegate: SliverChildBuilderDelegate(
-                                (context, index) {
-                                  final itemIndex = index ~/ 2;
-                                  if (index.isOdd) {
-                                    return const SizedBox(height: 10);
-                                  }
+                              const SliverToBoxAdapter(
+                                child: SizedBox(height: 12),
+                              ),
+                              if (_groups.isEmpty)
+                                const SliverToBoxAdapter(
+                                  child: _EmptyState(
+                                    icon: Icons.folder_copy_rounded,
+                                    title: 'Nenhum grupo cadastrado',
+                                    subtitle:
+                                        'Crie um grupo antes de montar a partida.',
+                                  ),
+                                )
+                              else if (sportPlayers.isEmpty)
+                                const SliverToBoxAdapter(
+                                  child: _EmptyState(
+                                    icon: Icons.groups_outlined,
+                                    title:
+                                        'Nenhum atleta neste grupo para este esporte',
+                                    subtitle:
+                                        'Selecione outro grupo ou cadastre atletas vinculados a ele.',
+                                  ),
+                                )
+                              else if (visiblePlayers.isEmpty)
+                                const SliverToBoxAdapter(
+                                  child: _EmptyState(
+                                    icon: Icons.search_off_rounded,
+                                    title: 'Nenhum jogador encontrado',
+                                    subtitle:
+                                        'Ajuste a busca para localizar atletas.',
+                                  ),
+                                )
+                              else
+                                SliverList(
+                                  delegate: SliverChildBuilderDelegate(
+                                    (context, index) {
+                                      final itemIndex = index ~/ 2;
+                                      if (index.isOdd) {
+                                        return const SizedBox(height: 10);
+                                      }
 
-                                  final player = visiblePlayers[itemIndex];
-                                  final isSelected = _selectedPlayers.contains(player.id);
+                                      final player = visiblePlayers[itemIndex];
+                                      final isSelected = _selectedPlayers
+                                          .contains(player.id);
 
-                                  return _SelectablePlayerCard(
-                                    player: player,
-                                    isSelected: isSelected,
-                                    onTap: () => _togglePlayer(player.id),
-                                  );
-                                },
-                                childCount: visiblePlayers.isEmpty ? 0 : visiblePlayers.length * 2 - 1,
+                                      return _SelectablePlayerCard(
+                                        player: player,
+                                        isSelected: isSelected,
+                                        onTap: () => _togglePlayer(player.id),
+                                      );
+                                    },
+                                    childCount: visiblePlayers.isEmpty
+                                        ? 0
+                                        : visiblePlayers.length * 2 - 1,
+                                  ),
+                                ),
+                              const SliverToBoxAdapter(
+                                child: SizedBox(height: 104),
                               ),
-                            ),
-                          const SliverToBoxAdapter(child: SizedBox(height: 12)),
-                          SliverToBoxAdapter(
-                            child: _PrimaryActionButton(
-                              label: 'Gerar Times',
-                              icon: Icons.auto_awesome_rounded,
-                              onTap: _generateTeams,
-                            ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: SafeArea(
+              minimum: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: IgnorePointer(
+                ignoring: !hasRequiredPlayers,
+                child: AnimatedSlide(
+                  duration: const Duration(milliseconds: 260),
+                  curve: Curves.easeOutCubic,
+                  offset: hasRequiredPlayers
+                      ? Offset.zero
+                      : const Offset(0, 1.4),
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeOut,
+                    opacity: hasRequiredPlayers ? 1 : 0,
+                    child: _PrimaryActionButton(
+                      label: 'Gerar Times',
+                      icon: Icons.auto_awesome_rounded,
+                      onTap: _generateTeams,
                     ),
                   ),
                 ),
-              ],
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
 }
 
 class _SimpleHeader extends StatelessWidget {
-  const _SimpleHeader({
-    required this.onBack,
-  });
+  const _SimpleHeader({required this.onBack});
 
   final VoidCallback onBack;
 
@@ -578,10 +622,7 @@ class _SimpleHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _IconSurfaceButton(
-          icon: Icons.arrow_back_rounded,
-          onTap: onBack,
-        ),
+        _IconSurfaceButton(icon: Icons.arrow_back_rounded, onTap: onBack),
         const SizedBox(width: 14),
         const Expanded(
           child: Text(
@@ -600,9 +641,7 @@ class _SimpleHeader extends StatelessWidget {
 }
 
 class _SectionSurface extends StatelessWidget {
-  const _SectionSurface({
-    required this.child,
-  });
+  const _SectionSurface({required this.child});
 
   final Widget child;
 
@@ -621,10 +660,7 @@ class _SectionSurface extends StatelessWidget {
 }
 
 class _SectionLabel extends StatelessWidget {
-  const _SectionLabel({
-    required this.title,
-    required this.subtitle,
-  });
+  const _SectionLabel({required this.title, required this.subtitle});
 
   final String title;
   final String subtitle;
@@ -687,10 +723,7 @@ class _PremiumDropdown<T> extends StatelessWidget {
         fontSize: 15,
         fontWeight: FontWeight.w600,
       ),
-      decoration: _premiumInputDecoration(
-        label: label,
-        icon: leadingIcon,
-      ),
+      decoration: _premiumInputDecoration(label: label, icon: leadingIcon),
       items: items,
       onChanged: onChanged,
     );
@@ -747,11 +780,7 @@ InputDecoration _premiumInputDecoration({
     ),
     prefixIcon: Padding(
       padding: const EdgeInsets.only(left: 6),
-      child: Icon(
-        icon,
-        color: Colors.white.withValues(alpha: 0.62),
-        size: 20,
-      ),
+      child: Icon(icon, color: Colors.white.withValues(alpha: 0.62), size: 20),
     ),
     prefixIconConstraints: const BoxConstraints(minWidth: 46, minHeight: 46),
     suffixIcon: suffixIcon,
@@ -764,7 +793,10 @@ InputDecoration _premiumInputDecoration({
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(22),
-      borderSide: BorderSide(color: AppColors.primary.withValues(alpha: 0.72), width: 1.4),
+      borderSide: BorderSide(
+        color: AppColors.primary.withValues(alpha: 0.72),
+        width: 1.4,
+      ),
     ),
     border: OutlineInputBorder(
       borderRadius: BorderRadius.circular(22),
@@ -774,17 +806,10 @@ InputDecoration _premiumInputDecoration({
 }
 
 class _SelectionStatusCard extends StatelessWidget {
-  const _SelectionStatusCard({
-    required this.text,
-    required this.color,
-    required this.selectedCount,
-    required this.expectedCount,
-  });
+  const _SelectionStatusCard({required this.text, required this.color});
 
   final String text;
   final Color color;
-  final int selectedCount;
-  final int expectedCount;
 
   @override
   Widget build(BuildContext context) {
@@ -809,27 +834,13 @@ class _SelectionStatusCard extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  text,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  '$selectedCount confirmados - meta $expectedCount',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.54),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
+            child: Text(
+              text,
+              style: TextStyle(
+                color: color,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -930,9 +941,7 @@ class _SelectablePlayerCard extends StatelessWidget {
 }
 
 class _PremiumCheckbox extends StatelessWidget {
-  const _PremiumCheckbox({
-    required this.value,
-  });
+  const _PremiumCheckbox({required this.value});
 
   final bool value;
 
@@ -949,10 +958,7 @@ class _PremiumCheckbox extends StatelessWidget {
             ? const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF34D46A),
-                  Color(0xFF169A49),
-                ],
+                colors: [Color(0xFF34D46A), Color(0xFF169A49)],
               )
             : null,
         color: value ? null : Colors.white.withValues(alpha: 0.05),
@@ -970,10 +976,7 @@ class _PremiumCheckbox extends StatelessWidget {
 }
 
 class _InfoBadge extends StatelessWidget {
-  const _InfoBadge({
-    required this.icon,
-    required this.label,
-  });
+  const _InfoBadge({required this.icon, required this.label});
 
   final IconData icon;
   final String label;
@@ -1028,10 +1031,7 @@ class _PrimaryActionButton extends StatelessWidget {
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF34D46A),
-              Color(0xFF169A49),
-            ],
+            colors: [Color(0xFF34D46A), Color(0xFF169A49)],
           ),
           boxShadow: [
             BoxShadow(
@@ -1066,10 +1066,7 @@ class _PrimaryActionButton extends StatelessWidget {
 }
 
 class _IconSurfaceButton extends StatelessWidget {
-  const _IconSurfaceButton({
-    required this.icon,
-    required this.onTap,
-  });
+  const _IconSurfaceButton({required this.icon, required this.onTap});
 
   final IconData icon;
   final VoidCallback onTap;
@@ -1087,9 +1084,7 @@ class _IconSurfaceButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
         ),
-        child: Center(
-          child: Icon(icon, color: Colors.white, size: 22),
-        ),
+        child: Center(child: Icon(icon, color: Colors.white, size: 22)),
       ),
     );
   }

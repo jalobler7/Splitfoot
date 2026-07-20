@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../app/routes/app_routes.dart';
 import '../app/theme/app_colors.dart';
 
-class GlobalFooterWidget extends StatelessWidget {
-  const GlobalFooterWidget({super.key});
+class AppFooter extends StatelessWidget {
+  const AppFooter({super.key});
 
   @override
   Widget build(BuildContext context) {

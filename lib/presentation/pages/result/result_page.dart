@@ -1,19 +1,20 @@
 import 'package:divide_time/app/routes/app_routes.dart';
 import 'package:divide_time/app/theme/app_colors.dart';
+import 'package:divide_time/core/enums/balance_mode.dart';
 import 'package:divide_time/core/utils/team_share_action.dart';
 import 'package:divide_time/data/models/player_model.dart';
+import 'package:divide_time/domain/entities/match_generation_request.dart';
+import 'package:divide_time/domain/entities/match_result_arguments.dart';
 import 'package:divide_time/domain/entities/team_result.dart';
+import 'package:divide_time/domain/services/team_balance_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 class ResultPage extends StatefulWidget {
-  final List<TeamResult> results;
+  final MatchResultArguments arguments;
 
-  const ResultPage({
-    super.key,
-    required this.results,
-  });
+  const ResultPage({super.key, required this.arguments});
 
   @override
   State<ResultPage> createState() => _ResultPageState();
@@ -21,10 +22,128 @@ class ResultPage extends StatefulWidget {
 
 class _ResultPageState extends State<ResultPage> {
   final PageController _pageController = PageController();
+  final TeamBalanceService _teamBalanceService = TeamBalanceService();
   static const String _shareTitle = 'Times gerados pelo Splitfoot';
+  late List<TeamResult> _results;
+  late MatchGenerationRequest _request;
   int _currentIndex = 0;
+  bool _isRecalculating = false;
 
-  TeamResult get _currentResult => widget.results[_currentIndex];
+  TeamResult get _currentResult => _results[_currentIndex];
+
+  @override
+  void initState() {
+    super.initState();
+    _results = widget.arguments.results;
+    _request = widget.arguments.request;
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  String _balanceModeLabel(BalanceMode mode) {
+    switch (mode) {
+      case BalanceMode.overallAverage:
+        return 'Overall médio';
+      case BalanceMode.attributes:
+        return 'Atributos';
+      case BalanceMode.positions:
+        return 'Posições';
+    }
+  }
+
+  Future<void> _showBalanceModeSelector() async {
+    if (_isRecalculating) return;
+
+    final selectedMode = await showModalBottomSheet<BalanceMode>(
+      context: context,
+      backgroundColor: const Color(0xFF161C1F),
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Critério de equilíbrio',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 10),
+              ...BalanceMode.values.map(
+                (mode) => ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                  leading: Icon(
+                    mode == _request.balanceMode
+                        ? Icons.check_circle_rounded
+                        : Icons.circle_outlined,
+                    color: AppColors.primary,
+                  ),
+                  title: Text(
+                    _balanceModeLabel(mode),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  onTap: () => Navigator.of(context).pop(mode),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (!mounted ||
+        selectedMode == null ||
+        selectedMode == _request.balanceMode) {
+      return;
+    }
+    await changeBalanceCriterion(selectedMode);
+  }
+
+  Future<void> changeBalanceCriterion(BalanceMode criterion) async {
+    if (_isRecalculating || criterion == _request.balanceMode) return;
+
+    setState(() => _isRecalculating = true);
+    final updatedRequest = _request.copyWith(balanceMode: criterion);
+
+    try {
+      await Future<void>.delayed(Duration.zero);
+      final updatedResults = _teamBalanceService.generate(updatedRequest);
+      if (updatedResults.isEmpty) {
+        throw StateError('Nenhuma opção de escalação foi encontrada');
+      }
+      if (!mounted) return;
+
+      setState(() {
+        _request = updatedRequest;
+        _results = updatedResults;
+        _currentIndex = 0;
+        _isRecalculating = false;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _pageController.hasClients) {
+          _pageController.jumpToPage(0);
+        }
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _isRecalculating = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao recalcular times: $error')),
+      );
+    }
+  }
 
   void _goToPage(int index) {
     _pageController.animateToPage(
@@ -45,148 +164,165 @@ class _ResultPageState extends State<ResultPage> {
 
   @override
   Widget build(BuildContext context) {
-    final results = widget.results;
+    final results = _results;
 
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF0B1510),
-              AppColors.background,
-              Color(0xFF0D1117),
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-            child: Column(
-              children: [
-                _ResultHeader(
-                  onBack: () => context.go(AppRoutes.home),
-                  onShare: _handleShareOrCopyCurrentResult,
-                ),
-                const SizedBox(height: 12),
-                _SectionSurface(
-                  child: Column(
-                    children: [
-                      Row(
+      body: Stack(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFF0B1510),
+                  AppColors.background,
+                  Color(0xFF0D1117),
+                ],
+              ),
+            ),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+                child: Column(
+                  children: [
+                    _ResultHeader(
+                      onBack: () => context.go(AppRoutes.home),
+                      onShare: _handleShareOrCopyCurrentResult,
+                    ),
+                    const SizedBox(height: 12),
+                    _SectionSurface(
+                      child: Column(
                         children: [
-                          Expanded(
-                            child: Text(
-                              'Opção ${_currentIndex + 1} de ${results.length}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: -0.2,
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Opção ${_currentIndex + 1} de ${results.length}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -0.2,
+                                  ),
+                                ),
                               ),
-                            ),
+                              _BalanceModeBadge(
+                                icon: Icons.balance_rounded,
+                                label: _balanceModeLabel(_request.balanceMode),
+                                isLoading: _isRecalculating,
+                                onTap: _showBalanceModeSelector,
+                              ),
+                            ],
                           ),
-                          _InfoBadge(
-                            icon: Icons.balance_rounded,
-                            label: _currentResult.scoreLabel,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        height: 42,
-                        child: ListView.separated(
-                          shrinkWrap: true,
-                          scrollDirection: Axis.horizontal,
-                          itemCount: results.length,
-                          separatorBuilder: (_, __) => const SizedBox(width: 8),
-                          itemBuilder: (context, index) {
-                            final isSelected = index == _currentIndex;
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            height: 42,
+                            child: ListView.separated(
+                              shrinkWrap: true,
+                              scrollDirection: Axis.horizontal,
+                              itemCount: results.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(width: 8),
+                              itemBuilder: (context, index) {
+                                final isSelected = index == _currentIndex;
 
-                            return _PageChip(
-                              label: 'Opção ${index + 1}',
-                              selected: isSelected,
-                              onTap: () => _goToPage(index),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Expanded(
-                  child: PageView.builder(
-                    controller: _pageController,
-                    itemCount: results.length,
-                    onPageChanged: (index) {
-                      setState(() {
-                        _currentIndex = index;
-                      });
-                    },
-                    itemBuilder: (context, index) {
-                      final result = results[index];
-
-                      return SingleChildScrollView(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Column(
-                          children: [
-                            _TeamCard(
-                              title: 'Time A',
-                              average: result.teamAOverallAverage,
-                              players: result.teamA,
-                            ),
-                            const SizedBox(height: 16),
-                            _TeamCard(
-                              title: 'Time B',
-                              average: result.teamBOverallAverage,
-                              players: result.teamB,
-                            ),
-                            const SizedBox(height: 16),
-                            _ScoreSummaryCard(
-                              label: result.scoreLabel,
-                              value: result.score is double
-                                  ? (result.score as double).toStringAsFixed(2)
-                                  : result.score.toString(),
-                              overallDifference: result.overallDifference.toStringAsFixed(2),
-                            ),
-                            const SizedBox(height: 16),
-                            _AttributeComparisonCard(result: result),
-                            const SizedBox(height: 16),
-                            _ActionRow(
-                              onShare: _handleShareOrCopyCurrentResult,
-                              onRanking: () {
-                                final allPlayers = [
-                                  ...result.teamA,
-                                  ...result.teamB,
-                                ];
-
-                                context.push(
-                                  AppRoutes.ranking,
-                                  extra: allPlayers,
+                                return _PageChip(
+                                  label: 'Opção ${index + 1}',
+                                  selected: isSelected,
+                                  onTap: () => _goToPage(index),
                                 );
                               },
                             ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: PageView.builder(
+                        controller: _pageController,
+                        itemCount: results.length,
+                        onPageChanged: (index) {
+                          setState(() {
+                            _currentIndex = index;
+                          });
+                        },
+                        itemBuilder: (context, index) {
+                          final result = results[index];
+
+                          return SingleChildScrollView(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Column(
+                              children: [
+                                _TeamCard(
+                                  title: 'Time A',
+                                  average: result.teamAOverallAverage,
+                                  players: result.teamA,
+                                ),
+                                const SizedBox(height: 16),
+                                _TeamCard(
+                                  title: 'Time B',
+                                  average: result.teamBOverallAverage,
+                                  players: result.teamB,
+                                ),
+                                const SizedBox(height: 16),
+                                _ScoreSummaryCard(
+                                  label: result.scoreLabel,
+                                  value: result.score is double
+                                      ? (result.score as double)
+                                            .toStringAsFixed(2)
+                                      : result.score.toString(),
+                                  overallDifference: result.overallDifference
+                                      .toStringAsFixed(2),
+                                ),
+                                const SizedBox(height: 16),
+                                _AttributeComparisonCard(result: result),
+                                const SizedBox(height: 16),
+                                _ActionRow(
+                                  onShare: _handleShareOrCopyCurrentResult,
+                                  onRanking: () {
+                                    final allPlayers = [
+                                      ...result.teamA,
+                                      ...result.teamB,
+                                    ];
+
+                                    context.push(
+                                      AppRoutes.ranking,
+                                      extra: allPlayers,
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
-        ),
+          if (_isRecalculating)
+            Positioned.fill(
+              child: AbsorbPointer(
+                child: ColoredBox(
+                  color: Colors.black38,
+                  child: const Center(
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
 }
 
 class _ResultHeader extends StatelessWidget {
-  const _ResultHeader({
-    required this.onBack,
-    required this.onShare,
-  });
+  const _ResultHeader({required this.onBack, required this.onShare});
 
   final VoidCallback onBack;
   final VoidCallback onShare;
@@ -195,15 +331,10 @@ class _ResultHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      decoration: BoxDecoration(
-        color: Colors.transparent,
-      ),
+      decoration: BoxDecoration(color: Colors.transparent),
       child: Row(
         children: [
-          _IconSurfaceButton(
-            icon: Icons.arrow_back_rounded,
-            onTap: onBack,
-          ),
+          _IconSurfaceButton(icon: Icons.arrow_back_rounded, onTap: onBack),
           const Spacer(),
           _TopActionButton(
             icon: kIsWeb ? Icons.copy_rounded : Icons.share_rounded,
@@ -236,10 +367,7 @@ class _TeamCard extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF161C1F),
-            Color(0xFF111618),
-          ],
+          colors: [Color(0xFF161C1F), Color(0xFF111618)],
         ),
         border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
         boxShadow: const [
@@ -300,9 +428,7 @@ class _TeamCard extends StatelessWidget {
 }
 
 class _PlayerRow extends StatelessWidget {
-  const _PlayerRow({
-    required this.player,
-  });
+  const _PlayerRow({required this.player});
 
   final PlayerModel player;
 
@@ -429,9 +555,7 @@ class _ScoreSummaryCard extends StatelessWidget {
 }
 
 class _AttributeComparisonCard extends StatelessWidget {
-  const _AttributeComparisonCard({
-    required this.result,
-  });
+  const _AttributeComparisonCard({required this.result});
 
   final TeamResult result;
 
@@ -475,7 +599,9 @@ class _AttributeComparisonCard extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColors.primary.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: AppColors.primary.withValues(alpha: 0.22)),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.22),
+              ),
             ),
             child: Text(
               'Diferença total: ${result.attributeDifferenceScore}',
@@ -493,10 +619,7 @@ class _AttributeComparisonCard extends StatelessWidget {
 }
 
 class _ActionRow extends StatelessWidget {
-  const _ActionRow({
-    required this.onShare,
-    required this.onRanking,
-  });
+  const _ActionRow({required this.onShare, required this.onRanking});
 
   final VoidCallback onShare;
   final VoidCallback onRanking;
@@ -526,9 +649,7 @@ class _ActionRow extends StatelessWidget {
 }
 
 class _SectionSurface extends StatelessWidget {
-  const _SectionSurface({
-    required this.child,
-  });
+  const _SectionSurface({required this.child});
 
   final Widget child;
 
@@ -580,10 +701,7 @@ class _PageChip extends StatelessWidget {
               ? const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFF34D46A),
-                    Color(0xFF169A49),
-                  ],
+                  colors: [Color(0xFF34D46A), Color(0xFF169A49)],
                 )
               : null,
           color: selected ? null : Colors.white.withValues(alpha: 0.04),
@@ -703,9 +821,7 @@ class _ComparisonRow extends StatelessWidget {
 }
 
 class _OverallBadge extends StatelessWidget {
-  const _OverallBadge({
-    required this.value,
-  });
+  const _OverallBadge({required this.value});
 
   final String value;
 
@@ -717,10 +833,7 @@ class _OverallBadge extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF34D46A),
-            Color(0xFF169A49),
-          ],
+          colors: [Color(0xFF34D46A), Color(0xFF169A49)],
         ),
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
@@ -758,43 +871,67 @@ class _OverallBadge extends StatelessWidget {
   }
 }
 
-class _InfoBadge extends StatelessWidget {
-  const _InfoBadge({
+class _BalanceModeBadge extends StatelessWidget {
+  const _BalanceModeBadge({
     required this.icon,
     required this.label,
+    required this.isLoading,
+    required this.onTap,
   });
 
   final IconData icon;
   final String label;
+  final bool isLoading;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: isLoading ? null : onTap,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Icon(icon, size: 15, color: AppColors.primary),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              height: 1,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.fade,
-            softWrap: false,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
           ),
-        ],
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              if (isLoading)
+                const SizedBox(
+                  width: 15,
+                  height: 15,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              else
+                Icon(icon, size: 15, color: AppColors.primary),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  height: 1,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.fade,
+                softWrap: false,
+              ),
+              const SizedBox(width: 4),
+              const Icon(
+                Icons.arrow_drop_down_rounded,
+                size: 18,
+                color: Colors.white70,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -822,10 +959,7 @@ class _PrimaryActionButton extends StatelessWidget {
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF34D46A),
-              Color(0xFF169A49),
-            ],
+            colors: [Color(0xFF34D46A), Color(0xFF169A49)],
           ),
           boxShadow: [
             BoxShadow(
@@ -945,10 +1079,7 @@ class _TopActionButton extends StatelessWidget {
 }
 
 class _IconSurfaceButton extends StatelessWidget {
-  const _IconSurfaceButton({
-    required this.icon,
-    required this.onTap,
-  });
+  const _IconSurfaceButton({required this.icon, required this.onTap});
 
   final IconData icon;
   final VoidCallback onTap;
@@ -966,9 +1097,7 @@ class _IconSurfaceButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
         ),
-        child: Center(
-          child: Icon(icon, color: Colors.white, size: 22),
-        ),
+        child: Center(child: Icon(icon, color: Colors.white, size: 22)),
       ),
     );
   }
