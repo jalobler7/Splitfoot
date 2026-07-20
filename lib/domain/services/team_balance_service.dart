@@ -1,8 +1,37 @@
 import '../../core/enums/sport_type.dart';
+import '../../core/enums/balance_mode.dart';
 import '../../data/models/player_model.dart';
 import '../entities/team_result.dart';
+import '../entities/match_generation_request.dart';
 
 class TeamBalanceService {
+  List<TeamResult> generate(MatchGenerationRequest request, {int limit = 5}) {
+    switch (request.balanceMode) {
+      case BalanceMode.overallAverage:
+        return balanceTopByOverall(
+          players: request.players,
+          teamASize: request.teamASize,
+          teamBSize: request.teamBSize,
+          limit: limit,
+        );
+      case BalanceMode.attributes:
+        return balanceTopByAttributes(
+          players: request.players,
+          teamASize: request.teamASize,
+          teamBSize: request.teamBSize,
+          limit: limit,
+        );
+      case BalanceMode.positions:
+        return balanceTopByPosition(
+          players: request.players,
+          teamASize: request.teamASize,
+          teamBSize: request.teamBSize,
+          sport: request.sport,
+          limit: limit,
+        );
+    }
+  }
+
   List<TeamResult> balanceTopByOverall({
     required List<PlayerModel> players,
     required int teamASize,
@@ -373,8 +402,5 @@ class _PositionRemainder {
   final String position;
   final double remainder;
 
-  const _PositionRemainder({
-    required this.position,
-    required this.remainder,
-  });
+  const _PositionRemainder({required this.position, required this.remainder});
 }

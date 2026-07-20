@@ -7,6 +7,8 @@ import '../../../data/datasources/team_group_local_datasource.dart';
 import '../../../data/models/player_model.dart';
 import '../../../data/models/team_group_model.dart';
 import '../../../domain/entities/team_result.dart';
+import '../../../domain/entities/match_generation_request.dart';
+import '../../../domain/entities/match_result_arguments.dart';
 import '../../../domain/services/team_balance_service.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -242,35 +244,15 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
     }
 
     try {
-      List<TeamResult> results;
-
-      switch (_balanceMode) {
-        case BalanceMode.overallAverage:
-          results = _teamBalanceService.balanceTopByOverall(
-            players: selectedPlayersList,
-            teamASize: teamA,
-            teamBSize: teamB,
-            limit: 5,
-          );
-          break;
-        case BalanceMode.attributes:
-          results = _teamBalanceService.balanceTopByAttributes(
-            players: selectedPlayersList,
-            teamASize: teamA,
-            teamBSize: teamB,
-            limit: 5,
-          );
-          break;
-        case BalanceMode.positions:
-          results = _teamBalanceService.balanceTopByPosition(
-            players: selectedPlayersList,
-            teamASize: teamA,
-            teamBSize: teamB,
-            sport: _selectedSport,
-            limit: 5,
-          );
-          break;
-      }
+      final request = MatchGenerationRequest(
+        players: selectedPlayersList,
+        sport: _selectedSport,
+        teamASize: teamA,
+        teamBSize: teamB,
+        groupId: _selectedGroupId!,
+        balanceMode: _balanceMode,
+      );
+      final List<TeamResult> results = _teamBalanceService.generate(request);
 
       if (results.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -281,7 +263,10 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
         return;
       }
 
-      context.push(AppRoutes.result, extra: results);
+      context.push(
+        AppRoutes.result,
+        extra: MatchResultArguments(request: request, results: results),
+      );
     } catch (e) {
       ScaffoldMessenger.of(
         context,
