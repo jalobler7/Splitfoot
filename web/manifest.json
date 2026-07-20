@@ -1,11 +1,11 @@
 {
-    "name": "divide_time",
-    "short_name": "divide_time",
+    "name": "Splitfoot — Times equilibrados",
+    "short_name": "Splitfoot",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0B5D3B",
+    "theme_color": "#0B5D3B",
+    "description": "Organize jogadores, compare habilidades e gere times equilibrados em segundos.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
