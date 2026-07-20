@@ -49,9 +49,9 @@ class _ResultPageState extends State<ResultPage> {
       case BalanceMode.overallAverage:
         return 'Overall médio';
       case BalanceMode.attributes:
-        return 'Soma dos atributos';
+        return 'Atributos';
       case BalanceMode.positions:
-        return 'Distribuição por posições';
+        return 'Posições';
     }
   }
 
