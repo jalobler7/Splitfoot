@@ -36,17 +36,8 @@ class _PlayerFormDialogState extends State<PlayerFormDialog> {
   bool _isSaving = false;
 
   final Map<String, List<String>> _positionsBySport = {
-    'Futsal': [
-      'Pivo',
-      'Ala',
-      'Fixo',
-    ],
-    'Fut7': [
-      'Fixo',
-      'Ala',
-      'Meia',
-      'Atacante',
-    ],
+    'Futsal': ['Pivo', 'Ala', 'Fixo'],
+    'Fut7': ['Fixo', 'Ala', 'Meia', 'Atacante'],
     'Fut11': [
       'Lateral Esquerdo',
       'Zagueiro',
@@ -67,12 +58,15 @@ class _PlayerFormDialogState extends State<PlayerFormDialog> {
     final player = widget.initialPlayer;
 
     _nameController = TextEditingController(text: player?.name ?? '');
-    _attackController =
-        TextEditingController(text: player?.attack.toString() ?? '');
-    _defenseController =
-        TextEditingController(text: player?.defense.toString() ?? '');
-    _staminaController =
-        TextEditingController(text: player?.stamina.toString() ?? '');
+    _attackController = TextEditingController(
+      text: player?.attack.toString() ?? '',
+    );
+    _defenseController = TextEditingController(
+      text: player?.defense.toString() ?? '',
+    );
+    _staminaController = TextEditingController(
+      text: player?.stamina.toString() ?? '',
+    );
 
     _selectedSport = player?.sport ?? 'Futsal';
     _groups = List<TeamGroupModel>.from(widget.availableGroups);
@@ -118,7 +112,9 @@ class _PlayerFormDialogState extends State<PlayerFormDialog> {
     final existingPlayer = widget.initialPlayer;
 
     final player = PlayerModel(
-      id: existingPlayer?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
+      id:
+          existingPlayer?.id ??
+          DateTime.now().microsecondsSinceEpoch.toString(),
       name: _nameController.text.trim(),
       attack: int.parse(_attackController.text.trim()),
       defense: int.parse(_defenseController.text.trim()),
@@ -134,25 +130,31 @@ class _PlayerFormDialogState extends State<PlayerFormDialog> {
 
     try {
       await widget.onSave(player);
-      if (!mounted) return;
-      Navigator.of(context).pop();
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
     } on PlayerValidationException catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
     } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Nao foi possivel salvar o jogador. Tente novamente.'),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Nao foi possivel salvar o jogador. Tente novamente.',
+            ),
+          ),
+        );
+      }
     } finally {
-      if (!mounted) return;
-      setState(() {
-        _isSaving = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
     }
   }
 
@@ -242,7 +244,7 @@ class _PlayerFormDialogState extends State<PlayerFormDialog> {
                 const SizedBox(height: 12),
               ] else ...[
                 DropdownButtonFormField<String>(
-                  value: _selectedGroupId,
+                  initialValue: _selectedGroupId,
                   decoration: const InputDecoration(
                     labelText: 'Selecionar grupo',
                   ),
@@ -281,60 +283,46 @@ class _PlayerFormDialogState extends State<PlayerFormDialog> {
               ],
               TextFormField(
                 controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Nome',
-                ),
+                decoration: const InputDecoration(labelText: 'Nome'),
                 validator: _validateName,
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _attackController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Ataque',
-                ),
+                decoration: const InputDecoration(labelText: 'Ataque'),
                 validator: _validateAttribute,
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _defenseController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Defesa',
-                ),
+                decoration: const InputDecoration(labelText: 'Defesa'),
                 validator: _validateAttribute,
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _staminaController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Folego',
-                ),
+                decoration: const InputDecoration(labelText: 'Folego'),
                 validator: _validateAttribute,
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: _selectedSport,
-                decoration: const InputDecoration(
-                  labelText: 'Esporte',
-                ),
+                initialValue: _selectedSport,
+                decoration: const InputDecoration(labelText: 'Esporte'),
                 items: _positionsBySport.keys
                     .map(
-                      (sport) => DropdownMenuItem(
-                        value: sport,
-                        child: Text(sport),
-                      ),
+                      (sport) =>
+                          DropdownMenuItem(value: sport, child: Text(sport)),
                     )
                     .toList(),
                 onChanged: _isSaving ? null : _onSportChanged,
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: _selectedPosition,
-                decoration: const InputDecoration(
-                  labelText: 'Posicao',
-                ),
+                initialValue: _selectedPosition,
+                decoration: const InputDecoration(labelText: 'Posicao'),
                 items: currentPositions
                     .map(
                       (position) => DropdownMenuItem(

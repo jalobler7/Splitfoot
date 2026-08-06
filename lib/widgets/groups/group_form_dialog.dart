@@ -29,7 +29,9 @@ class _GroupFormDialogState extends State<GroupFormDialog> {
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.initialGroup?.name ?? '');
+    _nameController = TextEditingController(
+      text: widget.initialGroup?.name ?? '',
+    );
   }
 
   @override
@@ -54,21 +56,25 @@ class _GroupFormDialogState extends State<GroupFormDialog> {
 
     try {
       await widget.onSave(group);
-      if (!mounted) return;
-      Navigator.of(context).pop(group);
+      if (mounted) {
+        Navigator.of(context).pop(group);
+      }
     } on TeamGroupValidationException catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
     } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nao foi possivel salvar o grupo.')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Nao foi possivel salvar o grupo.')),
+        );
+      }
     } finally {
-      if (!mounted) return;
-      setState(() => _isSaving = false);
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
     }
   }
 
@@ -87,15 +93,15 @@ class _GroupFormDialogState extends State<GroupFormDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(widget.title ?? (_isEditing ? 'Editar grupo' : 'Criar grupo')),
+      title: Text(
+        widget.title ?? (_isEditing ? 'Editar grupo' : 'Criar grupo'),
+      ),
       content: Form(
         key: _formKey,
         child: TextFormField(
           controller: _nameController,
           autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Nome do grupo',
-          ),
+          decoration: const InputDecoration(labelText: 'Nome do grupo'),
           validator: _validateName,
           textInputAction: TextInputAction.done,
           onFieldSubmitted: (_) => _save(),

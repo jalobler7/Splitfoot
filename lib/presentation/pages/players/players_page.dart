@@ -41,7 +41,9 @@ class _PlayersPageState extends State<PlayersPage> {
     final scopedPlayers = _playersForSelectedGroup();
     final playersBySport = _selectedSport == null
         ? scopedPlayers
-        : scopedPlayers.where((player) => player.sport == _selectedSport).toList();
+        : scopedPlayers
+              .where((player) => player.sport == _selectedSport)
+              .toList();
 
     final positions = playersBySport.map((player) => player.position).toSet();
     final orderedPositions = positions.toList()..sort();
@@ -775,7 +777,7 @@ class _SportDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<String?>(
-      value: value,
+      initialValue: value,
       dropdownColor: const Color(0xFF161C1F),
       borderRadius: BorderRadius.circular(22),
       icon: Icon(
@@ -847,7 +849,7 @@ class _GroupDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<String>(
-      value: value,
+      initialValue: value,
       dropdownColor: const Color(0xFF161C1F),
       borderRadius: BorderRadius.circular(22),
       icon: Icon(
