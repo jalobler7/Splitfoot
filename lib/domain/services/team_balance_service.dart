@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import '../../core/enums/sport_type.dart';
 import '../../core/enums/balance_mode.dart';
 import '../../data/models/player_model.dart';
@@ -5,6 +7,9 @@ import '../entities/team_result.dart';
 import '../entities/match_generation_request.dart';
 
 class TeamBalanceService {
+  static const int _exactSearchCombinationLimit = 50000;
+  static const int _heuristicCandidateCount = 32;
+
   List<TeamResult> generate(MatchGenerationRequest request, {int limit = 5}) {
     switch (request.balanceMode) {
       case BalanceMode.overallAverage:
@@ -44,6 +49,18 @@ class TeamBalanceService {
       teamBSize: teamBSize,
     );
 
+    if (_combinationCountExceedsLimit(players.length, teamASize)) {
+      return _generateHeuristicResults(
+        players: players,
+        teamASize: teamASize,
+        teamBSize: teamBSize,
+        limit: limit,
+        scoreLabel: 'Overall m\u00E9dio',
+        calculateScore: (teamA, teamB) =>
+            (_averageOverall(teamA) - _averageOverall(teamB)).abs(),
+      );
+    }
+
     final results = <TeamResult>[];
     final seenKeys = <String>{};
     final combinations = _combine(players, teamASize);
@@ -63,7 +80,7 @@ class TeamBalanceService {
         teamA: List<PlayerModel>.from(teamA),
         teamB: List<PlayerModel>.from(teamB),
         score: difference,
-        scoreLabel: 'Overall medio',
+        scoreLabel: 'Overall m\u00E9dio',
       );
 
       if (seenKeys.add(result.canonicalKey)) {
@@ -86,6 +103,20 @@ class TeamBalanceService {
       teamASize: teamASize,
       teamBSize: teamBSize,
     );
+
+    if (_combinationCountExceedsLimit(players.length, teamASize)) {
+      return _generateHeuristicResults(
+        players: players,
+        teamASize: teamASize,
+        teamBSize: teamBSize,
+        limit: limit,
+        scoreLabel: 'Atributos',
+        calculateScore: (teamA, teamB) =>
+            (_sumAttack(teamA) - _sumAttack(teamB)).abs() +
+            (_sumDefense(teamA) - _sumDefense(teamB)).abs() +
+            (_sumStamina(teamA) - _sumStamina(teamB)).abs(),
+      );
+    }
 
     final results = <TeamResult>[];
     final seenKeys = <String>{};
@@ -142,6 +173,22 @@ class TeamBalanceService {
       totalPlayers: players.length,
     );
 
+    if (_positionCombinationCountExceedsLimit(
+      playersByPosition: playersByPosition,
+      teamACountByPosition: teamACountByPosition,
+    )) {
+      return _generateHeuristicResults(
+        players: players,
+        teamASize: teamASize,
+        teamBSize: teamBSize,
+        limit: limit,
+        scoreLabel: 'Posi\u00E7\u00F5es',
+        preservePositions: true,
+        calculateScore: (teamA, teamB) =>
+            (_sumOverall(teamA) - _sumOverall(teamB)).abs(),
+      );
+    }
+
     final validTeamACombinations = _generateValidTeamACombinations(
       playersByPosition: playersByPosition,
       teamACountByPosition: teamACountByPosition,
@@ -170,7 +217,7 @@ class TeamBalanceService {
         teamA: List<PlayerModel>.from(teamA),
         teamB: List<PlayerModel>.from(teamB),
         score: overallDifference,
-        scoreLabel: 'Posicoes',
+        scoreLabel: 'Posi\u00E7\u00F5es',
       );
 
       if (seenKeys.add(result.canonicalKey)) {
@@ -180,6 +227,188 @@ class TeamBalanceService {
 
     _sortResults(results);
     return results.take(limit).toList();
+  }
+
+  bool _combinationCountExceedsLimit(int playerCount, int teamASize) {
+    return _combinationCount(playerCount, teamASize) >
+        BigInt.from(_exactSearchCombinationLimit);
+  }
+
+  bool _positionCombinationCountExceedsLimit({
+    required Map<String, List<PlayerModel>> playersByPosition,
+    required Map<String, int> teamACountByPosition,
+  }) {
+    var total = BigInt.one;
+    final limit = BigInt.from(_exactSearchCombinationLimit);
+
+    for (final entry in playersByPosition.entries) {
+      total *= _combinationCount(
+        entry.value.length,
+        teamACountByPosition[entry.key] ?? 0,
+      );
+      if (total > limit) return true;
+    }
+
+    return false;
+  }
+
+  BigInt _combinationCount(int total, int selected) {
+    final count = min(selected, total - selected);
+    if (count < 0) return BigInt.zero;
+
+    var result = BigInt.one;
+    for (var index = 1; index <= count; index++) {
+      result =
+          result * BigInt.from(total - count + index) ~/ BigInt.from(index);
+    }
+    return result;
+  }
+
+  List<TeamResult> _generateHeuristicResults({
+    required List<PlayerModel> players,
+    required int teamASize,
+    required int teamBSize,
+    required int limit,
+    required String scoreLabel,
+    required num Function(List<PlayerModel> teamA, List<PlayerModel> teamB)
+    calculateScore,
+    bool preservePositions = false,
+  }) {
+    final results = <TeamResult>[];
+    final seenKeys = <String>{};
+
+    for (
+      var candidateIndex = 0;
+      candidateIndex < _heuristicCandidateCount;
+      candidateIndex++
+    ) {
+      final teamA = _buildHeuristicTeamA(
+        players: players,
+        teamASize: teamASize,
+        preservePositions: preservePositions,
+        seed: _candidateSeed(players, candidateIndex),
+      );
+      final teamB = _playersOutsideTeam(players, teamA);
+
+      _improveHeuristicCandidate(
+        teamA: teamA,
+        teamB: teamB,
+        calculateScore: calculateScore,
+        preservePositions: preservePositions,
+      );
+
+      if (teamA.length != teamASize || teamB.length != teamBSize) continue;
+
+      final result = TeamResult(
+        teamA: List<PlayerModel>.from(teamA),
+        teamB: List<PlayerModel>.from(teamB),
+        score: calculateScore(teamA, teamB),
+        scoreLabel: scoreLabel,
+      );
+
+      if (seenKeys.add(result.canonicalKey)) results.add(result);
+    }
+
+    _sortResults(results);
+    return results.take(limit).toList();
+  }
+
+  List<PlayerModel> _buildHeuristicTeamA({
+    required List<PlayerModel> players,
+    required int teamASize,
+    required bool preservePositions,
+    required int seed,
+  }) {
+    if (!preservePositions) {
+      final shuffled = List<PlayerModel>.from(players)..shuffle(Random(seed));
+      return shuffled.take(teamASize).toList();
+    }
+
+    final playersByPosition = _groupPlayersByPosition(players);
+    final teamACountByPosition = _calculateTeamACountByPosition(
+      playersByPosition: playersByPosition,
+      teamASize: teamASize,
+      totalPlayers: players.length,
+    );
+    final teamA = <PlayerModel>[];
+    final positions = playersByPosition.keys.toList()..sort();
+
+    for (var index = 0; index < positions.length; index++) {
+      final position = positions[index];
+      final positionPlayers = List<PlayerModel>.from(
+        playersByPosition[position]!,
+      )..shuffle(Random(seed + index + 1));
+      teamA.addAll(positionPlayers.take(teamACountByPosition[position] ?? 0));
+    }
+
+    return teamA;
+  }
+
+  List<PlayerModel> _playersOutsideTeam(
+    List<PlayerModel> players,
+    List<PlayerModel> team,
+  ) {
+    final teamIds = team.map((player) => player.id).toSet();
+    return players.where((player) => !teamIds.contains(player.id)).toList();
+  }
+
+  void _improveHeuristicCandidate({
+    required List<PlayerModel> teamA,
+    required List<PlayerModel> teamB,
+    required num Function(List<PlayerModel> teamA, List<PlayerModel> teamB)
+    calculateScore,
+    required bool preservePositions,
+  }) {
+    var hasImprovement = true;
+    var iterations = 0;
+
+    while (hasImprovement && iterations < 64) {
+      hasImprovement = false;
+      iterations++;
+      var bestScore = calculateScore(teamA, teamB);
+      int? bestTeamAIndex;
+      int? bestTeamBIndex;
+
+      for (var teamAIndex = 0; teamAIndex < teamA.length; teamAIndex++) {
+        for (var teamBIndex = 0; teamBIndex < teamB.length; teamBIndex++) {
+          if (preservePositions &&
+              teamA[teamAIndex].position != teamB[teamBIndex].position) {
+            continue;
+          }
+
+          final playerA = teamA[teamAIndex];
+          final playerB = teamB[teamBIndex];
+          teamA[teamAIndex] = playerB;
+          teamB[teamBIndex] = playerA;
+          final score = calculateScore(teamA, teamB);
+          teamA[teamAIndex] = playerA;
+          teamB[teamBIndex] = playerB;
+
+          if (score < bestScore) {
+            bestScore = score;
+            bestTeamAIndex = teamAIndex;
+            bestTeamBIndex = teamBIndex;
+          }
+        }
+      }
+
+      if (bestTeamAIndex != null && bestTeamBIndex != null) {
+        final playerA = teamA[bestTeamAIndex];
+        teamA[bestTeamAIndex] = teamB[bestTeamBIndex];
+        teamB[bestTeamBIndex] = playerA;
+        hasImprovement = true;
+      }
+    }
+  }
+
+  int _candidateSeed(List<PlayerModel> players, int candidateIndex) {
+    var seed = 17 + candidateIndex;
+    for (final player in players) {
+      for (final codeUnit in player.id.codeUnits) {
+        seed = (seed * 31 + codeUnit) % 2147483647;
+      }
+    }
+    return seed;
   }
 
   void _validateTeamSizes({
@@ -268,7 +497,9 @@ class TeamBalanceService {
     }
 
     if (remainingSlots != 0) {
-      throw Exception('Nao foi possivel dividir os jogadores por posicao');
+      throw Exception(
+        'N\u00E3o foi poss\u00EDvel dividir os jogadores por posi\u00E7\u00E3o',
+      );
     }
 
     return teamACountByPosition;

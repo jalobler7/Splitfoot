@@ -31,7 +31,11 @@ class _RankingsPageState extends State<RankingsPage> {
     _RankingCategory('overall', 'Geral', Icons.workspace_premium_rounded),
     _RankingCategory('attack', 'Ataque', Icons.bolt_rounded),
     _RankingCategory('defense', 'Defesa', Icons.shield_rounded),
-    _RankingCategory('stamina', 'Folego', Icons.local_fire_department_rounded),
+    _RankingCategory(
+      'stamina',
+      'F\u00F4lego',
+      Icons.local_fire_department_rounded,
+    ),
     _RankingCategory('goalkeeper', 'Goleiros', Icons.sports_handball_rounded),
   ];
 
@@ -57,13 +61,19 @@ class _RankingsPageState extends State<RankingsPage> {
     final selectedGroupId = _resolveSelectedGroupId(groups);
     final groupedPlayers = <String, List<PlayerModel>>{};
 
-    for (final player in players.where((item) => item.teamGroupId == selectedGroupId)) {
-      groupedPlayers.putIfAbsent(player.sport, () => <PlayerModel>[]).add(player);
+    for (final player in players.where(
+      (item) => item.teamGroupId == selectedGroupId,
+    )) {
+      groupedPlayers
+          .putIfAbsent(player.sport, () => <PlayerModel>[])
+          .add(player);
     }
 
     final orderedSports = <String>[
       ..._sportOrder.where(groupedPlayers.containsKey),
-      ...groupedPlayers.keys.where((sport) => !_sportOrder.contains(sport)).toList()
+      ...groupedPlayers.keys
+          .where((sport) => !_sportOrder.contains(sport))
+          .toList()
         ..sort(),
     ];
 
@@ -75,14 +85,16 @@ class _RankingsPageState extends State<RankingsPage> {
         _selectedSportFilter = _allSportsFilter;
       }
       _playersBySport = {
-        for (final sport in orderedSports) sport: List<PlayerModel>.from(groupedPlayers[sport]!),
+        for (final sport in orderedSports)
+          sport: List<PlayerModel>.from(groupedPlayers[sport]!),
       };
     });
   }
 
   String? _resolveSelectedGroupId(List<TeamGroupModel> groups) {
     if (groups.isEmpty) return null;
-    if (_selectedGroupId != null && groups.any((group) => group.id == _selectedGroupId)) {
+    if (_selectedGroupId != null &&
+        groups.any((group) => group.id == _selectedGroupId)) {
       return _selectedGroupId;
     }
     return groups.first.id;
@@ -102,20 +114,42 @@ class _RankingsPageState extends State<RankingsPage> {
   List<MapEntry<String, List<PlayerModel>>> _visibleRankings() {
     final sports = _selectedSportFilter == _allSportsFilter
         ? _playersBySport.entries.toList()
-        : _playersBySport.entries.where((entry) => entry.key == _selectedSportFilter).toList();
+        : _playersBySport.entries
+              .where((entry) => entry.key == _selectedSportFilter)
+              .toList();
 
     return sports
-        .map((entry) => MapEntry(entry.key, _sortPlayersByCategory(entry.value, _selectedCategory)))
+        .map(
+          (entry) => MapEntry(
+            entry.key,
+            _sortPlayersByCategory(entry.value, _selectedCategory),
+          ),
+        )
         .where((entry) => entry.value.isNotEmpty)
         .toList();
   }
 
-  List<PlayerModel> _sortPlayersByCategory(List<PlayerModel> players, String categoryId) {
+  List<PlayerModel> _sortPlayersByCategory(
+    List<PlayerModel> players,
+    String categoryId,
+  ) {
     return switch (categoryId) {
       'overall' => _rankingService.rankPlayers(players),
-      'attack' => _sortByMetric(players, (player) => player.attack, fallback: (player) => player.overall),
-      'defense' => _sortByMetric(players, (player) => player.defense, fallback: (player) => player.overall),
-      'stamina' => _sortByMetric(players, (player) => player.stamina, fallback: (player) => player.overall),
+      'attack' => _sortByMetric(
+        players,
+        (player) => player.attack,
+        fallback: (player) => player.overall,
+      ),
+      'defense' => _sortByMetric(
+        players,
+        (player) => player.defense,
+        fallback: (player) => player.overall,
+      ),
+      'stamina' => _sortByMetric(
+        players,
+        (player) => player.stamina,
+        fallback: (player) => player.overall,
+      ),
       'goalkeeper' => _sortGoalkeepers(players),
       _ => _rankingService.rankPlayers(players),
     };
@@ -161,13 +195,17 @@ class _RankingsPageState extends State<RankingsPage> {
     return position.contains('gol');
   }
 
-  List<String> _availableSports() => [_allSportsFilter, ..._playersBySport.keys];
+  List<String> _availableSports() => [
+    _allSportsFilter,
+    ..._playersBySport.keys,
+  ];
 
   List<PlayerModel> _statsPool() {
     final visibleSports = _selectedSportFilter == _allSportsFilter
         ? _playersBySport.values
         : [
-            if (_playersBySport.containsKey(_selectedSportFilter)) _playersBySport[_selectedSportFilter]!,
+            if (_playersBySport.containsKey(_selectedSportFilter))
+              _playersBySport[_selectedSportFilter]!,
           ];
     return visibleSports.expand((players) => players).toList();
   }
@@ -177,9 +215,21 @@ class _RankingsPageState extends State<RankingsPage> {
     if (players.isEmpty) return null;
 
     return _HighlightStats(
-      attackLeader: _sortByMetric(players, (player) => player.attack, fallback: (player) => player.overall).first,
-      defenseLeader: _sortByMetric(players, (player) => player.defense, fallback: (player) => player.overall).first,
-      staminaLeader: _sortByMetric(players, (player) => player.stamina, fallback: (player) => player.overall).first,
+      attackLeader: _sortByMetric(
+        players,
+        (player) => player.attack,
+        fallback: (player) => player.overall,
+      ).first,
+      defenseLeader: _sortByMetric(
+        players,
+        (player) => player.defense,
+        fallback: (player) => player.overall,
+      ).first,
+      staminaLeader: _sortByMetric(
+        players,
+        (player) => player.stamina,
+        fallback: (player) => player.overall,
+      ).first,
       overallLeader: _rankingService.rankPlayers(players).first,
     );
   }
@@ -229,24 +279,36 @@ class _RankingsPageState extends State<RankingsPage> {
           child: hasGroups
               ? LayoutBuilder(
                   builder: (context, constraints) {
-                    final contentMaxWidth = constraints.maxWidth > 860 ? 860.0 : double.infinity;
+                    final contentMaxWidth = constraints.maxWidth > 860
+                        ? 860.0
+                        : double.infinity;
 
                     return SingleChildScrollView(
                       physics: const BouncingScrollPhysics(),
                       padding: const EdgeInsets.fromLTRB(16, 94, 16, 24),
                       child: Center(
                         child: ConstrainedBox(
-                          constraints: BoxConstraints(maxWidth: contentMaxWidth),
+                          constraints: BoxConstraints(
+                            maxWidth: contentMaxWidth,
+                          ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               _RankingsHeroCard(
                                 groupLabel: _selectedGroupName(),
-                                sportLabel: _selectedSportFilter == _allSportsFilter
+                                sportLabel:
+                                    _selectedSportFilter == _allSportsFilter
                                     ? 'Todos os formatos'
                                     : _sportLabel(_selectedSportFilter),
-                                categoryLabel: _categories.firstWhere((item) => item.id == _selectedCategory).label,
-                                totalPlayers: visibleRankings.fold<int>(0, (sum, entry) => sum + entry.value.length),
+                                categoryLabel: _categories
+                                    .firstWhere(
+                                      (item) => item.id == _selectedCategory,
+                                    )
+                                    .label,
+                                totalPlayers: visibleRankings.fold<int>(
+                                  0,
+                                  (sum, entry) => sum + entry.value.length,
+                                ),
                               ),
                               const SizedBox(height: 20),
                               _FilterSection(
@@ -276,12 +338,16 @@ class _RankingsPageState extends State<RankingsPage> {
                                     .map(
                                       (sport) => _FilterChipData(
                                         id: sport,
-                                        label: sport == _allSportsFilter ? 'Todos' : _sportLabel(sport),
+                                        label: sport == _allSportsFilter
+                                            ? 'Todos'
+                                            : _sportLabel(sport),
                                       ),
                                     )
                                     .toList(),
                                 selectedId: _selectedSportFilter,
-                                onSelected: (value) => setState(() => _selectedSportFilter = value),
+                                onSelected: (value) => setState(
+                                  () => _selectedSportFilter = value,
+                                ),
                               ),
                               const SizedBox(height: 16),
                               _FilterSection(
@@ -296,7 +362,8 @@ class _RankingsPageState extends State<RankingsPage> {
                                     )
                                     .toList(),
                                 selectedId: _selectedCategory,
-                                onSelected: (value) => setState(() => _selectedCategory = value),
+                                onSelected: (value) =>
+                                    setState(() => _selectedCategory = value),
                               ),
                               if (highlightStats != null) ...[
                                 const SizedBox(height: 24),
@@ -308,18 +375,32 @@ class _RankingsPageState extends State<RankingsPage> {
                                 switchInCurve: Curves.easeOutCubic,
                                 switchOutCurve: Curves.easeInCubic,
                                 child: visibleRankings.isEmpty
-                                    ? const _EmptyCategoryState(key: ValueKey('empty-category'))
+                                    ? const _EmptyCategoryState(
+                                        key: ValueKey('empty-category'),
+                                      )
                                     : Column(
-                                        key: ValueKey('${_selectedGroupId}_${_selectedSportFilter}_$_selectedCategory'),
-                                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                                        key: ValueKey(
+                                          '${_selectedGroupId}_${_selectedSportFilter}_$_selectedCategory',
+                                        ),
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
                                         children: [
-                                          for (var index = 0; index < visibleRankings.length; index++) ...[
+                                          for (
+                                            var index = 0;
+                                            index < visibleRankings.length;
+                                            index++
+                                          ) ...[
                                             _RankingSection(
-                                              title: _sportLabel(visibleRankings[index].key),
-                                              players: visibleRankings[index].value,
+                                              title: _sportLabel(
+                                                visibleRankings[index].key,
+                                              ),
+                                              players:
+                                                  visibleRankings[index].value,
                                               categoryId: _selectedCategory,
                                             ),
-                                            if (index != visibleRankings.length - 1) const SizedBox(height: 24),
+                                            if (index !=
+                                                visibleRankings.length - 1)
+                                              const SizedBox(height: 24),
                                           ],
                                         ],
                                       ),
@@ -400,10 +481,7 @@ class _RankingsHeroCard extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF17241C),
-            Color(0xFF0F1813),
-          ],
+          colors: [Color(0xFF17241C), Color(0xFF0F1813)],
         ),
         boxShadow: const [
           BoxShadow(
@@ -419,11 +497,16 @@ class _RankingsHeroCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 7,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+                  border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.25),
+                  ),
                 ),
                 child: const Text(
                   'COMPETITIVO',
@@ -442,7 +525,9 @@ class _RankingsHeroCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
                   color: Colors.white.withValues(alpha: 0.04),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.07),
+                  ),
                 ),
                 child: const Icon(
                   Icons.emoji_events_rounded,
@@ -478,10 +563,16 @@ class _RankingsHeroCard extends StatelessWidget {
             spacing: 12,
             runSpacing: 12,
             children: [
-              _OverviewBadge(icon: Icons.folder_copy_rounded, label: groupLabel),
+              _OverviewBadge(
+                icon: Icons.folder_copy_rounded,
+                label: groupLabel,
+              ),
               _OverviewBadge(icon: Icons.filter_alt_rounded, label: sportLabel),
               _OverviewBadge(icon: Icons.tune_rounded, label: categoryLabel),
-              _OverviewBadge(icon: Icons.groups_rounded, label: '$totalPlayers jogadores'),
+              _OverviewBadge(
+                icon: Icons.groups_rounded,
+                label: '$totalPlayers jogadores',
+              ),
             ],
           ),
         ],
@@ -491,10 +582,7 @@ class _RankingsHeroCard extends StatelessWidget {
 }
 
 class _OverviewBadge extends StatelessWidget {
-  const _OverviewBadge({
-    required this.icon,
-    required this.label,
-  });
+  const _OverviewBadge({required this.icon, required this.label});
 
   final IconData icon;
   final String label;
@@ -516,13 +604,13 @@ class _OverviewBadge extends StatelessWidget {
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
             ),
-           ),
           ),
         ],
       ),
@@ -573,17 +661,17 @@ class _FilterSection extends StatelessWidget {
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 220),
                   curve: Curves.easeOutCubic,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(18),
                     gradient: isSelected
                         ? const LinearGradient(
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
-                            colors: [
-                              Color(0xFF2ED165),
-                              Color(0xFF148C45),
-                            ],
+                            colors: [Color(0xFF2ED165), Color(0xFF148C45)],
                           )
                         : null,
                     color: isSelected ? null : const Color(0xFF151A1C),
@@ -612,7 +700,9 @@ class _FilterSection extends StatelessWidget {
                       Text(
                         item.label,
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: isSelected ? 1 : 0.92),
+                          color: Colors.white.withValues(
+                            alpha: isSelected ? 1 : 0.92,
+                          ),
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
                           letterSpacing: -0.1,
@@ -633,9 +723,7 @@ class _FilterSection extends StatelessWidget {
 }
 
 class _HighlightsSection extends StatelessWidget {
-  const _HighlightsSection({
-    required this.stats,
-  });
+  const _HighlightsSection({required this.stats});
 
   final _HighlightStats stats;
 
@@ -848,7 +936,9 @@ class _RankingSection extends StatelessWidget {
           ...List.generate(
             players.length,
             (index) => Padding(
-              padding: EdgeInsets.only(bottom: index == players.length - 1 ? 0 : 12),
+              padding: EdgeInsets.only(
+                bottom: index == players.length - 1 ? 0 : 12,
+              ),
               child: _RankingListItem(
                 rank: index + 1,
                 player: players[index],
@@ -889,8 +979,8 @@ class _RankingListItem extends StatelessWidget {
             isTopThree
                 ? placementColor.withValues(alpha: 0.16)
                 : rank <= 5
-                    ? AppColors.primary.withValues(alpha: 0.10)
-                    : const Color(0xFF161C1F),
+                ? AppColors.primary.withValues(alpha: 0.10)
+                : const Color(0xFF161C1F),
             const Color(0xFF111618),
           ],
         ),
@@ -922,7 +1012,10 @@ class _RankingListItem extends StatelessWidget {
               children: [
                 Flexible(
                   flex: 0,
-                  child: _RankingOverallBadge(value: player.overall, size: badgeSize),
+                  child: _RankingOverallBadge(
+                    value: player.overall,
+                    size: badgeSize,
+                  ),
                 ),
                 SizedBox(width: gap),
                 Expanded(
@@ -1018,10 +1111,7 @@ IconData? _placementIcon(int rank) {
 }
 
 class _RankingOverallBadge extends StatelessWidget {
-  const _RankingOverallBadge({
-    required this.value,
-    this.size = 68,
-  });
+  const _RankingOverallBadge({required this.value, this.size = 68});
 
   final int value;
   final double size;
@@ -1038,10 +1128,7 @@ class _RankingOverallBadge extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF35D76C),
-            Color(0xFF178C46),
-          ],
+          colors: [Color(0xFF35D76C), Color(0xFF178C46)],
         ),
         boxShadow: [
           BoxShadow(
@@ -1167,10 +1254,14 @@ class _RankingMetaPill extends StatelessWidget {
         vertical: compact ? 6 : 8,
       ),
       decoration: BoxDecoration(
-        color: isPosition ? style!.background : Colors.white.withValues(alpha: 0.04),
+        color: isPosition
+            ? style!.background
+            : Colors.white.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
-          color: isPosition ? style!.border : Colors.white.withValues(alpha: 0.06),
+          color: isPosition
+              ? style!.border
+              : Colors.white.withValues(alpha: 0.06),
         ),
       ),
       child: Row(
@@ -1189,7 +1280,9 @@ class _RankingMetaPill extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: isPosition ? style!.foreground : Colors.white.withValues(alpha: 0.78),
+                color: isPosition
+                    ? style!.foreground
+                    : Colors.white.withValues(alpha: 0.78),
                 fontSize: compact ? 11 : 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -1225,10 +1318,7 @@ class _ScoreBadge extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: highlight
-              ? [
-                  const Color(0xFF34D46A),
-                  const Color(0xFF169A49),
-                ]
+              ? [const Color(0xFF34D46A), const Color(0xFF169A49)]
               : [
                   AppColors.primary.withValues(alpha: 0.18),
                   AppColors.primary.withValues(alpha: 0.10),
@@ -1256,9 +1346,7 @@ class _ScoreBadge extends StatelessWidget {
 }
 
 class _SectionBadge extends StatelessWidget {
-  const _SectionBadge({
-    required this.categoryId,
-  });
+  const _SectionBadge({required this.categoryId});
 
   final String categoryId;
 
@@ -1310,11 +1398,7 @@ class _EmptyPlayersState extends StatelessWidget {
       child: const Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.groups_rounded,
-            color: AppColors.primary,
-            size: 42,
-          ),
+          Icon(Icons.groups_rounded, color: AppColors.primary, size: 42),
           SizedBox(height: 14),
           Text(
             'Nenhum jogador cadastrado ainda',
@@ -1357,11 +1441,7 @@ class _EmptyCategoryState extends StatelessWidget {
       ),
       child: const Column(
         children: [
-          Icon(
-            Icons.search_off_rounded,
-            color: AppColors.primary,
-            size: 40,
-          ),
+          Icon(Icons.search_off_rounded, color: AppColors.primary, size: 40),
           SizedBox(height: 14),
           Text(
             'Nenhum atleta encontrado nesta categoria',
@@ -1414,9 +1494,7 @@ class _IconSurfaceButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(18),
             border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
           ),
-          child: Center(
-            child: Icon(icon, color: Colors.white, size: 22),
-          ),
+          child: Center(child: Icon(icon, color: Colors.white, size: 22)),
         ),
       ),
     );
@@ -1476,11 +1554,7 @@ class _RankingCategory {
 }
 
 class _FilterChipData {
-  const _FilterChipData({
-    required this.id,
-    required this.label,
-    this.icon,
-  });
+  const _FilterChipData({required this.id, required this.label, this.icon});
 
   final String id;
   final String label;

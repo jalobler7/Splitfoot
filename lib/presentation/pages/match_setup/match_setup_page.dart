@@ -267,10 +267,14 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
         AppRoutes.result,
         extra: MatchResultArguments(request: request, results: results),
       );
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Erro ao gerar times: $e')));
+    } catch (_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'N\u00E3o foi poss\u00EDvel gerar os times. Tente novamente.',
+          ),
+        ),
+      );
     }
   }
 
@@ -492,7 +496,7 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
                                           ),
                                           const SizedBox(height: 4),
                                           Text(
-                                            '${visiblePlayers.length} disponiveis em ${_sportLabel(_selectedSport)}',
+                                            '${visiblePlayers.length} dispon\u00EDveis em ${_sportLabel(_selectedSport)}',
                                             style: TextStyle(
                                               color: Colors.white.withValues(
                                                 alpha: 0.56,

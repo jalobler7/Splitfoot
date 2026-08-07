@@ -68,7 +68,9 @@ class _GroupFormDialogState extends State<GroupFormDialog> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Nao foi possivel salvar o grupo.')),
+          const SnackBar(
+            content: Text('N\u00E3o foi poss\u00EDvel salvar o grupo.'),
+          ),
         );
       }
     } finally {

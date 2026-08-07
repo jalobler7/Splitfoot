@@ -136,11 +136,13 @@ class _ResultPageState extends State<ResultPage> {
           _pageController.jumpToPage(0);
         }
       });
-    } catch (error) {
+    } catch (_) {
       if (!mounted) return;
       setState(() => _isRecalculating = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao recalcular times: $error')),
+        const SnackBar(
+          content: Text('N\u00E3o foi poss\u00EDvel recalcular os times.'),
+        ),
       );
     }
   }

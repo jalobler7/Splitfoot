@@ -144,7 +144,7 @@ class _PlayerFormDialogState extends State<PlayerFormDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Nao foi possivel salvar o jogador. Tente novamente.',
+              'N\u00E3o foi poss\u00EDvel salvar o jogador. Tente novamente.',
             ),
           ),
         );
@@ -190,7 +190,7 @@ class _PlayerFormDialogState extends State<PlayerFormDialog> {
 
     final parsed = int.tryParse(value.trim());
     if (parsed == null) {
-      return 'Digite um numero valido';
+      return 'Digite um n\u00FAmero v\u00E1lido';
     }
 
     if (!PlayerLocalDataSource.isValidSkill(parsed)) {
@@ -304,7 +304,7 @@ class _PlayerFormDialogState extends State<PlayerFormDialog> {
               TextFormField(
                 controller: _staminaController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Folego'),
+                decoration: const InputDecoration(labelText: 'F\u00F4lego'),
                 validator: _validateAttribute,
               ),
               const SizedBox(height: 12),
@@ -322,7 +322,9 @@ class _PlayerFormDialogState extends State<PlayerFormDialog> {
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: _selectedPosition,
-                decoration: const InputDecoration(labelText: 'Posicao'),
+                decoration: const InputDecoration(
+                  labelText: 'Posi\u00E7\u00E3o',
+                ),
                 items: currentPositions
                     .map(
                       (position) => DropdownMenuItem(
@@ -351,7 +353,7 @@ class _PlayerFormDialogState extends State<PlayerFormDialog> {
         ),
         ElevatedButton(
           onPressed: _isSaving || _groups.isEmpty ? null : _save,
-          child: Text(_isEditing ? 'Salvar alteracoes' : 'Salvar'),
+          child: Text(_isEditing ? 'Salvar altera\u00E7\u00F5es' : 'Salvar'),
         ),
       ],
     );

@@ -1493,7 +1493,7 @@ class _PaginationBar extends StatelessWidget {
             return Column(
               children: [
                 Text(
-                  'Pagina $currentPage de $totalPages',
+                  'P\u00E1gina $currentPage de $totalPages',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: Colors.white,

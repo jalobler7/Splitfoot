@@ -20,6 +20,7 @@ class AppRoutes {
   static const ranking = '/ranking';
   static const rankings = '/rankings';
   static const help = '/help';
+  static const groups = '/groups';
   static const teamGroups = '/team-groups';
   static const privacyPolicy = '/privacy-policy';
   static const termsOfUse = '/terms-of-use';
@@ -49,6 +50,10 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const TeamGroupsPage(),
     ),
     GoRoute(
+      path: AppRoutes.groups,
+      redirect: (context, state) => AppRoutes.teamGroups,
+    ),
+    GoRoute(
       path: AppRoutes.privacyPolicy,
       builder: (context, state) => const PrivacyPolicyPage(),
     ),
@@ -58,15 +63,25 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.result,
+      redirect: (context, state) =>
+          state.extra is MatchResultArguments ? null : AppRoutes.matchSetup,
       builder: (context, state) {
-        final arguments = state.extra as MatchResultArguments;
+        final arguments = state.extra;
+        if (arguments is! MatchResultArguments) {
+          return const MatchSetupPage();
+        }
         return ResultPage(arguments: arguments);
       },
     ),
     GoRoute(
       path: AppRoutes.ranking,
+      redirect: (context, state) =>
+          state.extra is List<PlayerModel> ? null : AppRoutes.rankings,
       builder: (context, state) {
-        final players = state.extra as List<PlayerModel>;
+        final players = state.extra;
+        if (players is! List<PlayerModel>) {
+          return const RankingsPage();
+        }
         return RankingPage(players: players);
       },
     ),

@@ -73,7 +73,9 @@ class TeamGroupLocalDataSource {
   }
 
   int countPlayersForGroup(String groupId) {
-    return _playerBox.values.where((player) => player.teamGroupId == groupId).length;
+    return _playerBox.values
+        .where((player) => player.teamGroupId == groupId)
+        .length;
   }
 
   void _validateGroup(TeamGroupModel group, {String? excludeGroupId}) {
@@ -87,7 +89,9 @@ class TeamGroupLocalDataSource {
     }
 
     if (existsByName(trimmedName, excludeGroupId: excludeGroupId)) {
-      throw const TeamGroupValidationException('Ja existe um grupo com este nome.');
+      throw const TeamGroupValidationException(
+        'J\u00E1 existe um grupo com este nome.',
+      );
     }
   }
 
