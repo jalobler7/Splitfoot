@@ -77,6 +77,7 @@ class HomePage extends StatelessWidget {
                             _SecondaryActionButton(
                               icon: Icons.leaderboard_rounded,
                               label: 'Rankings',
+                              balanceTrailingSpace: true,
                               onTap: () => context.go(AppRoutes.rankings),
                             ),
                             const SizedBox(height: 12),
