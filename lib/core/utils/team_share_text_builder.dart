@@ -1,7 +1,7 @@
 import '../../data/models/player_model.dart';
 
 const String _appShareCallToAction =
-    'Monte seu time voc\u00EA tamb\u00E9m:https://splitfoot.netlify.app';
+    'Monte seu time voc\u00EA tamb\u00E9m: https://splitfoot.netlify.app';
 
 String buildShareText({
   required List<PlayerModel> teamA,

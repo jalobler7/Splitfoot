@@ -136,11 +136,13 @@ class _ResultPageState extends State<ResultPage> {
           _pageController.jumpToPage(0);
         }
       });
-    } catch (error) {
+    } catch (_) {
       if (!mounted) return;
       setState(() => _isRecalculating = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao recalcular times: $error')),
+        const SnackBar(
+          content: Text('N\u00E3o foi poss\u00EDvel recalcular os times.'),
+        ),
       );
     }
   }
@@ -1103,7 +1105,7 @@ class _IconSurfaceButton extends StatelessWidget {
   }
 }
 
-class _PressableScale extends StatefulWidget {
+class _PressableScale extends StatelessWidget {
   const _PressableScale({
     required this.child,
     required this.onTap,
@@ -1115,33 +1117,15 @@ class _PressableScale extends StatefulWidget {
   final BorderRadius borderRadius;
 
   @override
-  State<_PressableScale> createState() => _PressableScaleState();
-}
-
-class _PressableScaleState extends State<_PressableScale> {
-  bool _isPressed = false;
-
-  @override
   Widget build(BuildContext context) {
-    return AnimatedScale(
-      scale: _isPressed ? 0.98 : 1,
-      duration: const Duration(milliseconds: 120),
-      curve: Curves.easeOutCubic,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: widget.borderRadius,
-          splashColor: Colors.white.withValues(alpha: 0.06),
-          highlightColor: Colors.white.withValues(alpha: 0.02),
-          onHighlightChanged: (value) {
-            if (_isPressed == value) return;
-            setState(() {
-              _isPressed = value;
-            });
-          },
-          onTap: widget.onTap,
-          child: widget.child,
-        ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: borderRadius,
+        splashColor: Colors.white.withValues(alpha: 0.06),
+        highlightColor: Colors.white.withValues(alpha: 0.02),
+        onTap: onTap,
+        child: child,
       ),
     );
   }

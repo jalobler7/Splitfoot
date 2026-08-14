@@ -12,7 +12,7 @@ class HelpPage extends StatelessWidget {
       title: 'Como funciona',
       icon: Icons.auto_awesome_rounded,
       description:
-      'O Splitfoot ajuda você a organizar jogadores, calcular notas e montar times mais equilibrados para partidas de futebol amador.',
+          'O Splitfoot ajuda você a organizar jogadores, calcular notas e montar times mais equilibrados para partidas de futebol amador.',
       bullets: [
         'Cadastre os atletas com ataque, defesa, fôlego, posição e esporte.',
         'Organize jogadores por grupos para separar cada pelada ou campeonato.',
@@ -23,7 +23,7 @@ class HelpPage extends StatelessWidget {
       title: 'Como funcionam os grupos',
       icon: Icons.folder_rounded,
       description:
-      'Os grupos funcionam como pastas para separar atletas por contexto. Assim, você não mistura jogadores de peladas, campeonatos ou turmas diferentes.',
+          'Os grupos funcionam como pastas para separar atletas por contexto. Assim, você não mistura jogadores de peladas, campeonatos ou turmas diferentes.',
       bullets: [
         'Crie grupos diferentes para cada pelada ou campeonato.',
         'Cada atleta deve ficar vinculado a um grupo.',
@@ -35,7 +35,7 @@ class HelpPage extends StatelessWidget {
       title: 'Como montar partida',
       icon: Icons.sports_soccer_rounded,
       description:
-      'Na tela principal, toque em "Montar Partida" para escolher o grupo, definir esporte, selecionar jogadores e configurar o modo de divisão.',
+          'Na tela principal, toque em "Montar Partida" para escolher o grupo, definir esporte, selecionar jogadores e configurar o modo de divisão.',
       bullets: [
         'Selecione primeiro o grupo correto para ver apenas os atletas daquele contexto.',
         'Use a quantidade certa de jogadores para evitar sobra ou falta.',
@@ -47,7 +47,7 @@ class HelpPage extends StatelessWidget {
       title: 'Como cadastrar jogadores',
       icon: Icons.groups_rounded,
       description:
-      'A tela de jogadores concentra o cadastro, edição e organização dos atletas usados nas partidas e rankings.',
+          'A tela de jogadores concentra o cadastro, edição e organização dos atletas usados nas partidas e rankings.',
       bullets: [
         'Defina nome, grupo, posição e modalidade correta para cada atleta.',
         'Preencha os atributos de 0 a 99 com o máximo de critério possível.',
@@ -58,7 +58,7 @@ class HelpPage extends StatelessWidget {
       title: 'Como funciona o ranking',
       icon: Icons.leaderboard_rounded,
       description:
-      'Os rankings destacam os melhores jogadores por esporte, grupo e categoria com base nos atributos cadastrados.',
+          'Os rankings destacam os melhores jogadores por esporte, grupo e categoria com base nos atributos cadastrados.',
       bullets: [
         'O ranking geral usa a nota overall como base principal.',
         'Categorias ofensivas, defensivas e físicas analisam atributos separadamente.',
@@ -69,7 +69,7 @@ class HelpPage extends StatelessWidget {
       title: 'Dúvidas frequentes',
       icon: Icons.quiz_rounded,
       description:
-      'As respostas abaixo resolvem as perguntas mais comuns sobre grupos, jogadores, rankings e equilíbrio dos times.',
+          'As respostas abaixo resolvem as perguntas mais comuns sobre grupos, jogadores, rankings e equilíbrio dos times.',
       bullets: [
         'Se algo parecer errado, revise os dados do jogador antes de gerar os times novamente.',
         'Resultados diferentes podem acontecer ao trocar o modo de divisão.',
@@ -80,7 +80,7 @@ class HelpPage extends StatelessWidget {
       title: 'Sobre o app',
       icon: Icons.info_outline_rounded,
       description:
-      'Splitfoot foi pensado para deixar a organização da pelada mais rápida, justa e simples de usar no celular ou na web.',
+          'Splitfoot foi pensado para deixar a organização da pelada mais rápida, justa e simples de usar no celular ou na web.',
       bullets: [
         'Visual premium com foco em desempenho e confiança.',
         'Fluxo simples para cadastrar, organizar, montar partida e acompanhar rankings.',
@@ -92,42 +92,42 @@ class HelpPage extends StatelessWidget {
     _FaqItemData(
       question: 'Como montar times equilibrados?',
       answer:
-      'Cadastre os jogadores com atributos realistas, selecione o grupo correto, escolha a quantidade exata de atletas e use o modo de divisão que melhor combina com o contexto do jogo.',
+          'Cadastre os jogadores com atributos realistas, selecione o grupo correto, escolha a quantidade exata de atletas e use o modo de divisão que melhor combina com o contexto do jogo.',
     ),
     _FaqItemData(
       question: 'O que são grupos?',
       answer:
-      'Grupos são formas de organizar seus atletas por pelada, campeonato ou turma. Eles evitam que jogadores de contextos diferentes fiquem misturados na hora de montar partidas ou ver rankings.',
+          'Grupos são formas de organizar seus atletas por pelada, campeonato ou turma. Eles evitam que jogadores de contextos diferentes fiquem misturados na hora de montar partidas ou ver rankings.',
     ),
     _FaqItemData(
       question: 'Posso ter vários grupos?',
       answer:
-      'Sim. Você pode criar grupos diferentes, como "Futebol de quarta", "Pelada do sábado" ou "Campeonato interno", e vincular os atletas ao grupo correto.',
+          'Sim. Você pode criar grupos diferentes, como "Futebol de quarta", "Pelada do sábado" ou "Campeonato interno", e vincular os atletas ao grupo correto.',
     ),
     _FaqItemData(
       question: 'O que acontece ao excluir um grupo?',
       answer:
-      'Quando um grupo é removido, todos os jogadores vinculados a ele também são excluídos. Por isso, o app mostra um aviso antes da confirmação.',
+          'Quando um grupo é removido, todos os jogadores vinculados a ele também são excluídos. Por isso, o app mostra um aviso antes da confirmação.',
     ),
     _FaqItemData(
       question: 'Posso editar jogadores depois?',
       answer:
-      'Sim. A tela de jogadores permite ajustar nome, grupo, posição, modalidade e atributos sempre que você quiser refinar os dados.',
+          'Sim. A tela de jogadores permite ajustar nome, grupo, posição, modalidade e atributos sempre que você quiser refinar os dados.',
     ),
     _FaqItemData(
       question: 'Como o ranking é calculado?',
       answer:
-      'O ranking geral considera o overall do jogador. Também é possível analisar categorias específicas, como ataque, defesa e atributos físicos.',
+          'O ranking geral considera o overall do jogador. Também é possível analisar categorias específicas, como ataque, defesa e atributos físicos.',
     ),
     _FaqItemData(
       question: 'Como melhorar a precisão dos times?',
       answer:
-      'Use notas realistas, mantenha posições atualizadas e organize os atletas por grupo. Quanto melhores forem os dados cadastrados, mais coerente será a divisão dos times.',
+          'Use notas realistas, mantenha posições atualizadas e organize os atletas por grupo. Quanto melhores forem os dados cadastrados, mais coerente será a divisão dos times.',
     ),
     _FaqItemData(
       question: 'Quantos jogadores posso cadastrar?',
       answer:
-      'Não há limite prático para uso comum. O ideal é manter a base organizada por grupos para facilitar busca, seleção e leitura dos rankings.',
+          'Não há limite prático para uso comum. O ideal é manter a base organizada por grupos para facilitar busca, seleção e leitura dos rankings.',
     ),
   ];
 
@@ -177,8 +177,9 @@ class HelpPage extends StatelessWidget {
         child: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final contentMaxWidth =
-              constraints.maxWidth > 860 ? 860.0 : double.infinity;
+              final contentMaxWidth = constraints.maxWidth > 860
+                  ? 860.0
+                  : double.infinity;
 
               return SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
@@ -256,10 +257,7 @@ class _HelpHeroCard extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF17241C),
-            Color(0xFF0F1813),
-          ],
+          colors: [Color(0xFF17241C), Color(0xFF0F1813)],
         ),
         boxShadow: const [
           BoxShadow(
@@ -275,8 +273,10 @@ class _HelpHeroCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 7,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(999),
@@ -360,10 +360,7 @@ class _HelpHeroCard extends StatelessWidget {
 }
 
 class _OverviewBadge extends StatelessWidget {
-  const _OverviewBadge({
-    required this.icon,
-    required this.label,
-  });
+  const _OverviewBadge({required this.icon, required this.label});
 
   final IconData icon;
   final String label;
@@ -397,9 +394,7 @@ class _OverviewBadge extends StatelessWidget {
 }
 
 class _SectionsGrid extends StatelessWidget {
-  const _SectionsGrid({
-    required this.sections,
-  });
+  const _SectionsGrid({required this.sections});
 
   final List<_HelpSectionData> sections;
 
@@ -430,10 +425,10 @@ class _SectionsGrid extends StatelessWidget {
               children: sections
                   .map(
                     (section) => SizedBox(
-                  width: itemWidth,
-                  child: _HelpSectionCard(section: section),
-                ),
-              )
+                      width: itemWidth,
+                      child: _HelpSectionCard(section: section),
+                    ),
+                  )
                   .toList(),
             );
           },
@@ -444,9 +439,7 @@ class _SectionsGrid extends StatelessWidget {
 }
 
 class _HelpSectionCard extends StatelessWidget {
-  const _HelpSectionCard({
-    required this.section,
-  });
+  const _HelpSectionCard({required this.section});
 
   final _HelpSectionData section;
 
@@ -506,7 +499,7 @@ class _HelpSectionCard extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           ...section.bullets.map(
-                (bullet) => Padding(
+            (bullet) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -548,9 +541,7 @@ class _HelpSectionCard extends StatelessWidget {
 }
 
 class _FaqSection extends StatelessWidget {
-  const _FaqSection({
-    required this.items,
-  });
+  const _FaqSection({required this.items});
 
   final List<_FaqItemData> items;
 
@@ -608,9 +599,10 @@ class _FaqSection extends StatelessWidget {
           const SizedBox(height: 18),
           ...List.generate(
             items.length,
-                (index) => Padding(
-              padding:
-              EdgeInsets.only(bottom: index == items.length - 1 ? 0 : 12),
+            (index) => Padding(
+              padding: EdgeInsets.only(
+                bottom: index == items.length - 1 ? 0 : 12,
+              ),
               child: _FaqTile(item: items[index]),
             ),
           ),
@@ -621,9 +613,7 @@ class _FaqSection extends StatelessWidget {
 }
 
 class _FaqTile extends StatelessWidget {
-  const _FaqTile({
-    required this.item,
-  });
+  const _FaqTile({required this.item});
 
   final _FaqItemData item;
 
@@ -640,8 +630,10 @@ class _FaqTile extends StatelessWidget {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(22),
           child: ExpansionTile(
-            tilePadding:
-            const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+            tilePadding: const EdgeInsets.symmetric(
+              horizontal: 18,
+              vertical: 6,
+            ),
             childrenPadding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
             iconColor: AppColors.primary,
             collapsedIconColor: Colors.white.withValues(alpha: 0.72),
@@ -805,16 +797,14 @@ class _IconSurfaceButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(18),
             border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
           ),
-          child: Center(
-            child: Icon(icon, color: Colors.white, size: 22),
-          ),
+          child: Center(child: Icon(icon, color: Colors.white, size: 22)),
         ),
       ),
     );
   }
 }
 
-class _PressableScale extends StatefulWidget {
+class _PressableScale extends StatelessWidget {
   const _PressableScale({
     required this.child,
     required this.onTap,
@@ -826,33 +816,15 @@ class _PressableScale extends StatefulWidget {
   final BorderRadius borderRadius;
 
   @override
-  State<_PressableScale> createState() => _PressableScaleState();
-}
-
-class _PressableScaleState extends State<_PressableScale> {
-  bool _isPressed = false;
-
-  @override
   Widget build(BuildContext context) {
-    return AnimatedScale(
-      scale: _isPressed ? 0.98 : 1,
-      duration: const Duration(milliseconds: 120),
-      curve: Curves.easeOutCubic,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: widget.borderRadius,
-          splashColor: Colors.white.withValues(alpha: 0.06),
-          highlightColor: Colors.white.withValues(alpha: 0.02),
-          onHighlightChanged: (value) {
-            if (_isPressed == value) return;
-            setState(() {
-              _isPressed = value;
-            });
-          },
-          onTap: widget.onTap,
-          child: widget.child,
-        ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: borderRadius,
+        splashColor: Colors.white.withValues(alpha: 0.06),
+        highlightColor: Colors.white.withValues(alpha: 0.02),
+        onTap: onTap,
+        child: child,
       ),
     );
   }
@@ -873,10 +845,7 @@ class _HelpSectionData {
 }
 
 class _FaqItemData {
-  const _FaqItemData({
-    required this.question,
-    required this.answer,
-  });
+  const _FaqItemData({required this.question, required this.answer});
 
   final String question;
   final String answer;

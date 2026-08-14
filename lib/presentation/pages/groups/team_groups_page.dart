@@ -18,6 +18,7 @@ class _TeamGroupsPageState extends State<TeamGroupsPage> {
   final TeamGroupLocalDataSource _groupDataSource = TeamGroupLocalDataSource();
 
   List<TeamGroupModel> _groups = [];
+  Map<String, int> _playerCountsByGroup = const {};
   String? _deletingGroupId;
 
   @override
@@ -29,6 +30,7 @@ class _TeamGroupsPageState extends State<TeamGroupsPage> {
   void _loadGroups() {
     setState(() {
       _groups = _groupDataSource.getAllGroups();
+      _playerCountsByGroup = _groupDataSource.countPlayersByGroup();
     });
   }
 
@@ -64,7 +66,9 @@ class _TeamGroupsPageState extends State<TeamGroupsPage> {
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setDialogState) => AlertDialog(
           backgroundColor: const Color(0xFF14191B),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
           title: const Text(
             'Excluir grupo',
             style: TextStyle(fontWeight: FontWeight.w700),
@@ -128,7 +132,9 @@ class _TeamGroupsPageState extends State<TeamGroupsPage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.danger,
                 foregroundColor: Colors.white,
-                disabledBackgroundColor: AppColors.danger.withValues(alpha: 0.55),
+                disabledBackgroundColor: AppColors.danger.withValues(
+                  alpha: 0.55,
+                ),
                 disabledForegroundColor: Colors.white70,
               ),
               onPressed: _deletingGroupId == group.id
@@ -155,7 +161,7 @@ class _TeamGroupsPageState extends State<TeamGroupsPage> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text(
-                              'Nao foi possivel excluir o grupo. Tente novamente.',
+                              'N\u00E3o foi poss\u00EDvel excluir o grupo. Tente novamente.',
                             ),
                           ),
                         );
@@ -189,8 +195,8 @@ class _TeamGroupsPageState extends State<TeamGroupsPage> {
       SnackBar(
         content: Text(
           deletedPlayers == 0
-              ? 'Grupo excluido com sucesso.'
-              : 'Grupo excluido com $deletedPlayers jogador(es) removido(s).',
+              ? 'Grupo exclu\u00EDdo com sucesso.'
+              : 'Grupo exclu\u00EDdo com $deletedPlayers jogador(es) removido(s).',
         ),
       ),
     );
@@ -264,13 +270,13 @@ class _TeamGroupsPageState extends State<TeamGroupsPage> {
                       ? const _EmptyState()
                       : ListView.separated(
                           itemCount: _groups.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 12),
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 12),
                           itemBuilder: (context, index) {
                             final group = _groups[index];
-                            final playersCount = _groupDataSource.countPlayersForGroup(group.id);
                             return _GroupCard(
                               group: group,
-                              playersCount: playersCount,
+                              playersCount: _playerCountsByGroup[group.id] ?? 0,
                               onEdit: () => _openEditGroupDialog(group),
                               onDelete: () => _confirmDeleteGroup(group),
                               isDeleting: _deletingGroupId == group.id,
@@ -324,7 +330,10 @@ class _GroupCard extends StatelessWidget {
               color: AppColors.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(18),
             ),
-            child: const Icon(Icons.folder_copy_rounded, color: AppColors.primary),
+            child: const Icon(
+              Icons.folder_copy_rounded,
+              color: AppColors.primary,
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -363,7 +372,9 @@ class _GroupCard extends StatelessWidget {
                     height: 18,
                     child: CircularProgressIndicator(
                       strokeWidth: 2.2,
-                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.danger),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        AppColors.danger,
+                      ),
                     ),
                   )
                 : const Icon(
@@ -398,9 +409,7 @@ class _TopIconButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
           ),
-          child: Center(
-            child: Icon(icon, color: Colors.white, size: 22),
-          ),
+          child: Center(child: Icon(icon, color: Colors.white, size: 22)),
         ),
       ),
     );

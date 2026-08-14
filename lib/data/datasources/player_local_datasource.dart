@@ -61,7 +61,7 @@ class PlayerLocalDataSource {
   void _validatePlayer(PlayerModel player, {String? excludePlayerId}) {
     _validateSkill(player.attack, 'Ataque');
     _validateSkill(player.defense, 'Defesa');
-    _validateSkill(player.stamina, 'Folego');
+    _validateSkill(player.stamina, 'F\u00F4lego');
 
     if (player.teamGroupId.trim().isEmpty) {
       throw const PlayerValidationException(
@@ -76,16 +76,14 @@ class PlayerLocalDataSource {
       excludePlayerId: excludePlayerId,
     )) {
       throw const PlayerValidationException(
-        'Ja existe um jogador com este nome neste esporte e grupo.',
+        'J\u00E1 existe um jogador com este nome neste esporte e grupo.',
       );
     }
   }
 
   void _validateSkill(int value, String label) {
     if (!isValidSkill(value)) {
-      throw PlayerValidationException(
-        '$label deve estar entre 0 e 99.',
-      );
+      throw PlayerValidationException('$label deve estar entre 0 e 99.');
     }
   }
 
