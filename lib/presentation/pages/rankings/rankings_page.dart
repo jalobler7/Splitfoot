@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:divide_time/app/theme/app_colors.dart';
+import 'package:divide_time/core/performance/performance_probe.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -43,26 +44,74 @@ class _RankingsPageState extends State<RankingsPage> {
   final TeamGroupLocalDataSource _groupDataSource = TeamGroupLocalDataSource();
   final RankingService _rankingService = RankingService();
 
+  List<PlayerModel> _allPlayers = [];
   Map<String, List<PlayerModel>> _playersBySport = const {};
   List<TeamGroupModel> _groups = [];
+  bool _dataLoaded = false;
   String? _selectedGroupId;
   String _selectedSportFilter = _allSportsFilter;
   String _selectedCategory = _categories.first.id;
+  late final ValueNotifier<_RankingsHeroData> _heroNotifier;
+  late final ValueNotifier<_FilterViewData> _groupFilterNotifier;
+  late final ValueNotifier<_FilterViewData> _sportFilterNotifier;
+  late final ValueNotifier<_FilterViewData> _categoryFilterNotifier;
+  late final ValueNotifier<_HighlightStats?> _highlightsNotifier;
+  late final ValueNotifier<_RankingListData> _rankingListNotifier;
 
   @override
   void initState() {
     super.initState();
+    _heroNotifier = ValueNotifier(const _RankingsHeroData.empty());
+    _groupFilterNotifier = ValueNotifier(const _FilterViewData.empty());
+    _sportFilterNotifier = ValueNotifier(const _FilterViewData.empty());
+    _categoryFilterNotifier = ValueNotifier(
+      _FilterViewData(
+        items: _categories
+            .map(
+              (category) => _FilterChipData(
+                id: category.id,
+                label: category.label,
+                icon: category.icon,
+              ),
+            )
+            .toList(),
+        selectedId: _selectedCategory,
+      ),
+    );
+    _highlightsNotifier = ValueNotifier(null);
+    _rankingListNotifier = ValueNotifier(const _RankingListData.empty());
     _loadRankings();
   }
 
-  void _loadRankings() {
-    final players = _dataSource.getAllPlayers();
-    final groups = _groupDataSource.getAllGroups();
-    final selectedGroupId = _resolveSelectedGroupId(groups);
+  @override
+  void dispose() {
+    _heroNotifier.dispose();
+    _groupFilterNotifier.dispose();
+    _sportFilterNotifier.dispose();
+    _categoryFilterNotifier.dispose();
+    _highlightsNotifier.dispose();
+    _rankingListNotifier.dispose();
+    super.dispose();
+  }
+
+  void _loadRankings({String? selectedGroupId}) {
+    PerformanceProbe.timeSync(
+      'process.rankings.load',
+      () => _loadRankingsImpl(selectedGroupId: selectedGroupId),
+    );
+  }
+
+  void _loadRankingsImpl({String? selectedGroupId}) {
+    final players = _dataLoaded ? _allPlayers : _dataSource.getAllPlayers();
+    final groups = _dataLoaded ? _groups : _groupDataSource.getAllGroups();
+    final resolvedGroupId = _resolveSelectedGroupId(
+      groups,
+      preferredId: selectedGroupId,
+    );
     final groupedPlayers = <String, List<PlayerModel>>{};
 
     for (final player in players.where(
-      (item) => item.teamGroupId == selectedGroupId,
+      (item) => item.teamGroupId == resolvedGroupId,
     )) {
       groupedPlayers
           .putIfAbsent(player.sport, () => <PlayerModel>[])
@@ -77,25 +126,58 @@ class _RankingsPageState extends State<RankingsPage> {
         ..sort(),
     ];
 
-    setState(() {
-      _groups = groups;
-      _selectedGroupId = selectedGroupId;
-      if (_selectedSportFilter != _allSportsFilter &&
-          !orderedSports.contains(_selectedSportFilter)) {
-        _selectedSportFilter = _allSportsFilter;
-      }
-      _playersBySport = {
-        for (final sport in orderedSports)
-          sport: List<PlayerModel>.from(groupedPlayers[sport]!),
-      };
-    });
+    final playersBySport = {
+      for (final sport in orderedSports)
+        sport: List<PlayerModel>.from(groupedPlayers[sport]!),
+    };
+    final sportFilter = selectedGroupId != null
+        ? _allSportsFilter
+        : _selectedSportFilter != _allSportsFilter &&
+              !orderedSports.contains(_selectedSportFilter)
+        ? _allSportsFilter
+        : _selectedSportFilter;
+    final rankings = _visibleRankingsFor(
+      playersBySport,
+      sportFilter,
+      _selectedCategory,
+    );
+    final highlights = _buildHighlightStatsFor(playersBySport, sportFilter);
+
+    _allPlayers = players;
+    _groups = groups;
+    _dataLoaded = true;
+    _selectedGroupId = resolvedGroupId;
+    _selectedSportFilter = sportFilter;
+    _playersBySport = playersBySport;
+    _groupFilterNotifier.value = _FilterViewData(
+      items: groups
+          .map(
+            (group) => _FilterChipData(
+              id: group.id,
+              label: group.name,
+              icon: Icons.folder_copy_rounded,
+            ),
+          )
+          .toList(),
+      selectedId: resolvedGroupId ?? '',
+    );
+    _sportFilterNotifier.value = _buildSportFilterData();
+    _highlightsNotifier.value = highlights;
+    _rankingListNotifier.value = _RankingListData(
+      entries: rankings,
+      categoryId: _selectedCategory,
+    );
+    _publishHero(rankings);
   }
 
-  String? _resolveSelectedGroupId(List<TeamGroupModel> groups) {
+  String? _resolveSelectedGroupId(
+    List<TeamGroupModel> groups, {
+    String? preferredId,
+  }) {
     if (groups.isEmpty) return null;
-    if (_selectedGroupId != null &&
-        groups.any((group) => group.id == _selectedGroupId)) {
-      return _selectedGroupId;
+    final candidate = preferredId ?? _selectedGroupId;
+    if (candidate != null && groups.any((group) => group.id == candidate)) {
+      return candidate;
     }
     return groups.first.id;
   }
@@ -111,22 +193,32 @@ class _RankingsPageState extends State<RankingsPage> {
 
   String _sportLabel(String sport) => _sportLabels[sport] ?? sport;
 
-  List<MapEntry<String, List<PlayerModel>>> _visibleRankings() {
-    final sports = _selectedSportFilter == _allSportsFilter
-        ? _playersBySport.entries.toList()
-        : _playersBySport.entries
-              .where((entry) => entry.key == _selectedSportFilter)
-              .toList();
+  List<MapEntry<String, List<PlayerModel>>> _visibleRankingsFor(
+    Map<String, List<PlayerModel>> playersBySport,
+    String sportFilter,
+    String categoryId,
+  ) {
+    return PerformanceProbe.timeSync(
+      'process.rankings.visibleRankings',
+      () {
+        final sports = sportFilter == _allSportsFilter
+            ? playersBySport.entries.toList()
+            : playersBySport.entries
+                  .where((entry) => entry.key == sportFilter)
+                  .toList();
 
-    return sports
-        .map(
-          (entry) => MapEntry(
-            entry.key,
-            _sortPlayersByCategory(entry.value, _selectedCategory),
-          ),
-        )
-        .where((entry) => entry.value.isNotEmpty)
-        .toList();
+        return sports
+            .map(
+              (entry) => MapEntry(
+                entry.key,
+                _sortPlayersByCategory(entry.value, categoryId),
+              ),
+            )
+            .where((entry) => entry.value.isNotEmpty)
+            .toList();
+      },
+      arguments: {'sports': playersBySport.length},
+    );
   }
 
   List<PlayerModel> _sortPlayersByCategory(
@@ -195,49 +287,143 @@ class _RankingsPageState extends State<RankingsPage> {
     return position.contains('gol');
   }
 
-  List<String> _availableSports() => [
-    _allSportsFilter,
-    ..._playersBySport.keys,
-  ];
-
-  List<PlayerModel> _statsPool() {
-    final visibleSports = _selectedSportFilter == _allSportsFilter
-        ? _playersBySport.values
+  List<PlayerModel> _statsPoolFor(
+    Map<String, List<PlayerModel>> playersBySport,
+    String sportFilter,
+  ) {
+    final visibleSports = sportFilter == _allSportsFilter
+        ? playersBySport.values
         : [
-            if (_playersBySport.containsKey(_selectedSportFilter))
-              _playersBySport[_selectedSportFilter]!,
+            if (playersBySport.containsKey(sportFilter))
+              playersBySport[sportFilter]!,
           ];
     return visibleSports.expand((players) => players).toList();
   }
 
-  _HighlightStats? _buildHighlightStats() {
-    final players = _statsPool();
-    if (players.isEmpty) return null;
+  _HighlightStats? _buildHighlightStatsFor(
+    Map<String, List<PlayerModel>> playersBySport,
+    String sportFilter,
+  ) {
+    return PerformanceProbe.timeSync('process.rankings.highlights', () {
+      final players = _statsPoolFor(playersBySport, sportFilter);
+      if (players.isEmpty) return null;
 
-    return _HighlightStats(
-      attackLeader: _sortByMetric(
-        players,
-        (player) => player.attack,
-        fallback: (player) => player.overall,
-      ).first,
-      defenseLeader: _sortByMetric(
-        players,
-        (player) => player.defense,
-        fallback: (player) => player.overall,
-      ).first,
-      staminaLeader: _sortByMetric(
-        players,
-        (player) => player.stamina,
-        fallback: (player) => player.overall,
-      ).first,
-      overallLeader: _rankingService.rankPlayers(players).first,
+      return _HighlightStats(
+        attackLeader: _sortByMetric(
+          players,
+          (player) => player.attack,
+          fallback: (player) => player.overall,
+        ).first,
+        defenseLeader: _sortByMetric(
+          players,
+          (player) => player.defense,
+          fallback: (player) => player.overall,
+        ).first,
+        staminaLeader: _sortByMetric(
+          players,
+          (player) => player.stamina,
+          fallback: (player) => player.overall,
+        ).first,
+        overallLeader: _rankingService.rankPlayers(players).first,
+      );
+    });
+  }
+
+  _FilterViewData _buildSportFilterData() {
+    return _FilterViewData(
+      items: [_allSportsFilter, ..._playersBySport.keys]
+          .map(
+            (sport) => _FilterChipData(
+              id: sport,
+              label: sport == _allSportsFilter ? 'Todos' : _sportLabel(sport),
+            ),
+          )
+          .toList(),
+      selectedId: _selectedSportFilter,
     );
+  }
+
+  void _publishHero(List<MapEntry<String, List<PlayerModel>>> rankings) {
+    _heroNotifier.value = _RankingsHeroData(
+      groupLabel: _selectedGroupName(),
+      sportLabel: _selectedSportFilter == _allSportsFilter
+          ? 'Todos os formatos'
+          : _sportLabel(_selectedSportFilter),
+      categoryLabel: _categories
+          .firstWhere((item) => item.id == _selectedCategory)
+          .label,
+      totalPlayers: rankings.fold<int>(
+        0,
+        (sum, entry) => sum + entry.value.length,
+      ),
+    );
+  }
+
+  void _onGroupSelected(String value) {
+    if (value == _selectedGroupId) return;
+    PerformanceProbe.interaction('rankings.group', () {
+      _loadRankings(selectedGroupId: value);
+    });
+  }
+
+  void _onSportSelected(String value) {
+    if (value == _selectedSportFilter) return;
+    PerformanceProbe.interaction('rankings.sport', () {
+      final rankings = _visibleRankingsFor(
+        _playersBySport,
+        value,
+        _selectedCategory,
+      );
+      final highlights = _buildHighlightStatsFor(_playersBySport, value);
+      _selectedSportFilter = value;
+      _sportFilterNotifier.value = _buildSportFilterData();
+      _highlightsNotifier.value = highlights;
+      _rankingListNotifier.value = _RankingListData(
+        entries: rankings,
+        categoryId: _selectedCategory,
+      );
+      _publishHero(rankings);
+    });
+  }
+
+  void _onCategorySelected(String value) {
+    if (value == _selectedCategory) return;
+    PerformanceProbe.interaction('rankings.category', () {
+      final rankings = _visibleRankingsFor(
+        _playersBySport,
+        _selectedSportFilter,
+        value,
+      );
+      _selectedCategory = value;
+      _categoryFilterNotifier.value = _FilterViewData(
+        items: _categoryFilterNotifier.value.items,
+        selectedId: value,
+      );
+      _rankingListNotifier.value = _RankingListData(
+        entries: rankings,
+        categoryId: value,
+      );
+      _publishHero(rankings);
+    });
+  }
+
+  bool _onScrollNotification(ScrollNotification notification) {
+    if (notification is ScrollStartNotification) {
+      PerformanceProbe.interaction('rankings.scroll', () {});
+    }
+    return false;
   }
 
   @override
   Widget build(BuildContext context) {
-    final visibleRankings = _visibleRankings();
-    final highlightStats = _buildHighlightStats();
+    PerformanceProbe.recordBuild('RankingsPage');
+    return PerformanceProbe.timeSync(
+      'build.RankingsPage',
+      () => _buildPage(context),
+    );
+  }
+
+  Widget _buildPage(BuildContext context) {
     final hasGroups = _groups.isNotEmpty;
 
     return Scaffold(
@@ -278,139 +464,8 @@ class _RankingsPageState extends State<RankingsPage> {
         child: SafeArea(
           child: hasGroups
               ? LayoutBuilder(
-                  builder: (context, constraints) {
-                    final contentMaxWidth = constraints.maxWidth > 860
-                        ? 860.0
-                        : double.infinity;
-
-                    return SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(16, 94, 16, 24),
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxWidth: contentMaxWidth,
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              _RankingsHeroCard(
-                                groupLabel: _selectedGroupName(),
-                                sportLabel:
-                                    _selectedSportFilter == _allSportsFilter
-                                    ? 'Todos os formatos'
-                                    : _sportLabel(_selectedSportFilter),
-                                categoryLabel: _categories
-                                    .firstWhere(
-                                      (item) => item.id == _selectedCategory,
-                                    )
-                                    .label,
-                                totalPlayers: visibleRankings.fold<int>(
-                                  0,
-                                  (sum, entry) => sum + entry.value.length,
-                                ),
-                              ),
-                              const SizedBox(height: 20),
-                              _FilterSection(
-                                title: 'Grupo',
-                                items: _groups
-                                    .map(
-                                      (group) => _FilterChipData(
-                                        id: group.id,
-                                        label: group.name,
-                                        icon: Icons.folder_copy_rounded,
-                                      ),
-                                    )
-                                    .toList(),
-                                selectedId: _selectedGroupId ?? '',
-                                onSelected: (value) {
-                                  setState(() {
-                                    _selectedGroupId = value;
-                                    _selectedSportFilter = _allSportsFilter;
-                                  });
-                                  _loadRankings();
-                                },
-                              ),
-                              const SizedBox(height: 16),
-                              _FilterSection(
-                                title: 'Esporte',
-                                items: _availableSports()
-                                    .map(
-                                      (sport) => _FilterChipData(
-                                        id: sport,
-                                        label: sport == _allSportsFilter
-                                            ? 'Todos'
-                                            : _sportLabel(sport),
-                                      ),
-                                    )
-                                    .toList(),
-                                selectedId: _selectedSportFilter,
-                                onSelected: (value) => setState(
-                                  () => _selectedSportFilter = value,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              _FilterSection(
-                                title: 'Categoria',
-                                items: _categories
-                                    .map(
-                                      (category) => _FilterChipData(
-                                        id: category.id,
-                                        label: category.label,
-                                        icon: category.icon,
-                                      ),
-                                    )
-                                    .toList(),
-                                selectedId: _selectedCategory,
-                                onSelected: (value) =>
-                                    setState(() => _selectedCategory = value),
-                              ),
-                              if (highlightStats != null) ...[
-                                const SizedBox(height: 24),
-                                _HighlightsSection(stats: highlightStats),
-                              ],
-                              const SizedBox(height: 24),
-                              AnimatedSwitcher(
-                                duration: const Duration(milliseconds: 320),
-                                switchInCurve: Curves.easeOutCubic,
-                                switchOutCurve: Curves.easeInCubic,
-                                child: visibleRankings.isEmpty
-                                    ? const _EmptyCategoryState(
-                                        key: ValueKey('empty-category'),
-                                      )
-                                    : Column(
-                                        key: ValueKey(
-                                          '${_selectedGroupId}_${_selectedSportFilter}_$_selectedCategory',
-                                        ),
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.stretch,
-                                        children: [
-                                          for (
-                                            var index = 0;
-                                            index < visibleRankings.length;
-                                            index++
-                                          ) ...[
-                                            _RankingSection(
-                                              title: _sportLabel(
-                                                visibleRankings[index].key,
-                                              ),
-                                              players:
-                                                  visibleRankings[index].value,
-                                              categoryId: _selectedCategory,
-                                            ),
-                                            if (index !=
-                                                visibleRankings.length - 1)
-                                              const SizedBox(height: 24),
-                                          ],
-                                        ],
-                                      ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  },
+                  builder: (context, constraints) =>
+                      _buildRankingsScrollView(constraints),
                 )
               : const Center(
                   child: Padding(
@@ -419,6 +474,102 @@ class _RankingsPageState extends State<RankingsPage> {
                   ),
                 ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildRankingsScrollView(BoxConstraints constraints) {
+    final horizontalPadding = constraints.maxWidth > 892
+        ? (constraints.maxWidth - 860) / 2
+        : 16.0;
+
+    return NotificationListener<ScrollNotification>(
+      onNotification: _onScrollNotification,
+      child: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(
+              horizontalPadding,
+              94,
+              horizontalPadding,
+              24,
+            ),
+            sliver: SliverMainAxisGroup(
+              slivers: [
+                ValueListenableBuilder<_RankingsHeroData>(
+                  valueListenable: _heroNotifier,
+                  builder: (context, data, _) => SliverToBoxAdapter(
+                    child: _RankingsHeroCard(
+                      groupLabel: data.groupLabel,
+                      sportLabel: data.sportLabel,
+                      categoryLabel: data.categoryLabel,
+                      totalPlayers: data.totalPlayers,
+                    ),
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 20)),
+                ValueListenableBuilder<_FilterViewData>(
+                  valueListenable: _groupFilterNotifier,
+                  builder: (context, data, _) => SliverToBoxAdapter(
+                    child: _FilterSection(
+                      title: 'Grupo',
+                      items: data.items,
+                      selectedId: data.selectedId,
+                      onSelected: _onGroupSelected,
+                    ),
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                ValueListenableBuilder<_FilterViewData>(
+                  valueListenable: _sportFilterNotifier,
+                  builder: (context, data, _) => SliverToBoxAdapter(
+                    child: _FilterSection(
+                      title: 'Esporte',
+                      items: data.items,
+                      selectedId: data.selectedId,
+                      onSelected: _onSportSelected,
+                    ),
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                ValueListenableBuilder<_FilterViewData>(
+                  valueListenable: _categoryFilterNotifier,
+                  builder: (context, data, _) => SliverToBoxAdapter(
+                    child: _FilterSection(
+                      title: 'Categoria',
+                      items: data.items,
+                      selectedId: data.selectedId,
+                      onSelected: _onCategorySelected,
+                    ),
+                  ),
+                ),
+                ValueListenableBuilder<_HighlightStats?>(
+                  valueListenable: _highlightsNotifier,
+                  builder: (context, stats, _) {
+                    if (stats == null) {
+                      return const SliverToBoxAdapter(child: SizedBox.shrink());
+                    }
+                    return SliverMainAxisGroup(
+                      slivers: [
+                        const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                        SliverToBoxAdapter(
+                          child: _HighlightsSection(stats: stats),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                ValueListenableBuilder<_RankingListData>(
+                  valueListenable: _rankingListNotifier,
+                  builder: (context, data, _) =>
+                      _RankingSectionsSliver(data: data),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -473,6 +624,7 @@ class _RankingsHeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    PerformanceProbe.recordBuild('RankingsHeroCard');
     return Container(
       padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
       decoration: BoxDecoration(
@@ -633,6 +785,7 @@ class _FilterSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    PerformanceProbe.recordBuild('RankingsFilterSection');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -652,6 +805,7 @@ class _FilterSection extends StatelessWidget {
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
             itemBuilder: (context, index) {
+              PerformanceProbe.recordBuild('RankingsFilterChip');
               final item = items[index];
               final isSelected = item.id == selectedId;
 
@@ -729,6 +883,7 @@ class _HighlightsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    PerformanceProbe.recordBuild('RankingsHighlightsSection');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -812,6 +967,7 @@ class _HighlightCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    PerformanceProbe.recordBuild('RankingsHighlightCard');
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -872,8 +1028,37 @@ class _HighlightCard extends StatelessWidget {
   }
 }
 
-class _RankingSection extends StatelessWidget {
-  const _RankingSection({
+class _RankingSectionsSliver extends StatelessWidget {
+  const _RankingSectionsSliver({required this.data});
+
+  final _RankingListData data;
+
+  @override
+  Widget build(BuildContext context) {
+    if (data.entries.isEmpty) {
+      return const SliverToBoxAdapter(child: _EmptyCategoryState());
+    }
+
+    return SliverMainAxisGroup(
+      slivers: [
+        for (var index = 0; index < data.entries.length; index++) ...[
+          _RankingSliverSection(
+            title:
+                _RankingsPageState._sportLabels[data.entries[index].key] ??
+                data.entries[index].key,
+            players: data.entries[index].value,
+            categoryId: data.categoryId,
+          ),
+          if (index != data.entries.length - 1)
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+        ],
+      ],
+    );
+  }
+}
+
+class _RankingSliverSection extends StatelessWidget {
+  const _RankingSliverSection({
     required this.title,
     required this.players,
     required this.categoryId,
@@ -885,8 +1070,8 @@ class _RankingSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
+    PerformanceProbe.recordBuild('RankingsSection');
+    return DecoratedSliver(
       decoration: BoxDecoration(
         color: const Color(0xFF111719),
         borderRadius: BorderRadius.circular(30),
@@ -899,54 +1084,61 @@ class _RankingSection extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.6,
-                      ),
+      sliver: SliverPadding(
+        padding: const EdgeInsets.all(20),
+        sliver: SliverMainAxisGroup(
+          slivers: [
+            SliverToBoxAdapter(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.6,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '${players.length} atletas ranqueados',
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '${players.length} atletas ranqueados',
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              _SectionBadge(categoryId: categoryId),
-            ],
-          ),
-          const SizedBox(height: 22),
-          ...List.generate(
-            players.length,
-            (index) => Padding(
-              padding: EdgeInsets.only(
-                bottom: index == players.length - 1 ? 0 : 12,
-              ),
-              child: _RankingListItem(
-                rank: index + 1,
-                player: players[index],
-                categoryId: categoryId,
+                  ),
+                  _SectionBadge(categoryId: categoryId),
+                ],
               ),
             ),
-          ),
-        ],
+            const SliverToBoxAdapter(child: SizedBox(height: 22)),
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) => Padding(
+                  padding: EdgeInsets.only(
+                    bottom: index == players.length - 1 ? 0 : 12,
+                  ),
+                  child: _RankingListItem(
+                    key: ValueKey(players[index].id),
+                    rank: index + 1,
+                    player: players[index],
+                    categoryId: categoryId,
+                  ),
+                ),
+                childCount: players.length,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -954,6 +1146,7 @@ class _RankingSection extends StatelessWidget {
 
 class _RankingListItem extends StatelessWidget {
   const _RankingListItem({
+    super.key,
     required this.rank,
     required this.player,
     required this.categoryId,
@@ -965,6 +1158,7 @@ class _RankingListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    PerformanceProbe.recordBuild('RankingsListItem');
     final placementColor = _placementColor(rank);
     final placementIcon = _placementIcon(rank);
     final isTopThree = rank <= 3;
@@ -1213,7 +1407,7 @@ class _RankingPlacementPill extends StatelessWidget {
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
-              '${rank}\u00BA lugar',
+              '$rank\u00BA lugar',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
@@ -1428,7 +1622,7 @@ class _EmptyPlayersState extends StatelessWidget {
 }
 
 class _EmptyCategoryState extends StatelessWidget {
-  const _EmptyCategoryState({super.key});
+  const _EmptyCategoryState();
 
   @override
   Widget build(BuildContext context) {
@@ -1501,7 +1695,7 @@ class _IconSurfaceButton extends StatelessWidget {
   }
 }
 
-class _PressableScale extends StatefulWidget {
+class _PressableScale extends StatelessWidget {
   const _PressableScale({
     required this.child,
     required this.onTap,
@@ -1513,33 +1707,15 @@ class _PressableScale extends StatefulWidget {
   final BorderRadius borderRadius;
 
   @override
-  State<_PressableScale> createState() => _PressableScaleState();
-}
-
-class _PressableScaleState extends State<_PressableScale> {
-  bool _isPressed = false;
-
-  @override
   Widget build(BuildContext context) {
-    return AnimatedScale(
-      scale: _isPressed ? 0.98 : 1,
-      duration: const Duration(milliseconds: 120),
-      curve: Curves.easeOutCubic,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: widget.borderRadius,
-          splashColor: Colors.white.withValues(alpha: 0.06),
-          highlightColor: Colors.white.withValues(alpha: 0.02),
-          onHighlightChanged: (value) {
-            if (_isPressed == value) return;
-            setState(() {
-              _isPressed = value;
-            });
-          },
-          onTap: widget.onTap,
-          child: widget.child,
-        ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: borderRadius,
+        splashColor: Colors.white.withValues(alpha: 0.06),
+        highlightColor: Colors.white.withValues(alpha: 0.02),
+        onTap: onTap,
+        child: child,
       ),
     );
   }
@@ -1551,6 +1727,44 @@ class _RankingCategory {
   final String id;
   final String label;
   final IconData icon;
+}
+
+class _RankingsHeroData {
+  const _RankingsHeroData({
+    required this.groupLabel,
+    required this.sportLabel,
+    required this.categoryLabel,
+    required this.totalPlayers,
+  });
+
+  const _RankingsHeroData.empty()
+    : groupLabel = '',
+      sportLabel = '',
+      categoryLabel = '',
+      totalPlayers = 0;
+
+  final String groupLabel;
+  final String sportLabel;
+  final String categoryLabel;
+  final int totalPlayers;
+}
+
+class _FilterViewData {
+  const _FilterViewData({required this.items, required this.selectedId});
+
+  const _FilterViewData.empty() : items = const [], selectedId = '';
+
+  final List<_FilterChipData> items;
+  final String selectedId;
+}
+
+class _RankingListData {
+  const _RankingListData({required this.entries, required this.categoryId});
+
+  const _RankingListData.empty() : entries = const [], categoryId = 'overall';
+
+  final List<MapEntry<String, List<PlayerModel>>> entries;
+  final String categoryId;
 }
 
 class _FilterChipData {

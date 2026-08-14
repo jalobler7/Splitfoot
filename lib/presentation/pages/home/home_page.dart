@@ -1,5 +1,6 @@
 import 'package:divide_time/app/routes/app_routes.dart';
 import 'package:divide_time/app/theme/app_colors.dart';
+import 'package:divide_time/core/performance/performance_probe.dart';
 import 'package:divide_time/widgets/global_footer_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -9,6 +10,14 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    PerformanceProbe.recordBuild('HomePage');
+    return PerformanceProbe.timeSync(
+      'build.HomePage',
+      () => _buildPage(context),
+    );
+  }
+
+  Widget _buildPage(BuildContext context) {
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -50,7 +59,11 @@ class HomePage extends StatelessWidget {
                             _PrimaryActionButton(
                               icon: Icons.sports_soccer_rounded,
                               label: 'Montar Partida',
-                              onTap: () => context.go(AppRoutes.matchSetup),
+                              onTap: () => _navigate(
+                                context,
+                                'home.openMatchSetup',
+                                AppRoutes.matchSetup,
+                              ),
                             ),
                             const SizedBox(height: 18),
                             Row(
@@ -59,8 +72,11 @@ class HomePage extends StatelessWidget {
                                   child: _SecondaryActionButton(
                                     icon: Icons.folder_copy_rounded,
                                     label: 'Meus grupos',
-                                    onTap: () =>
-                                        context.go(AppRoutes.teamGroups),
+                                    onTap: () => _navigate(
+                                      context,
+                                      'home.openGroups',
+                                      AppRoutes.teamGroups,
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -68,7 +84,11 @@ class HomePage extends StatelessWidget {
                                   child: _SecondaryActionButton(
                                     icon: Icons.groups_rounded,
                                     label: 'Jogadores',
-                                    onTap: () => context.go(AppRoutes.players),
+                                    onTap: () => _navigate(
+                                      context,
+                                      'home.openPlayers',
+                                      AppRoutes.players,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -78,14 +98,22 @@ class HomePage extends StatelessWidget {
                               icon: Icons.leaderboard_rounded,
                               label: 'Rankings',
                               balanceTrailingSpace: true,
-                              onTap: () => context.go(AppRoutes.rankings),
+                              onTap: () => _navigate(
+                                context,
+                                'home.openRankings',
+                                AppRoutes.rankings,
+                              ),
                             ),
                             const SizedBox(height: 12),
                             _SecondaryActionButton(
                               icon: Icons.help_outline_rounded,
                               label: 'Ajuda',
                               balanceTrailingSpace: true,
-                              onTap: () => context.go(AppRoutes.help),
+                              onTap: () => _navigate(
+                                context,
+                                'home.openHelp',
+                                AppRoutes.help,
+                              ),
                             ),
                           ],
                         ),
@@ -101,6 +129,10 @@ class HomePage extends StatelessWidget {
       ),
     );
   }
+
+  void _navigate(BuildContext context, String name, String route) {
+    PerformanceProbe.interaction(name, () => context.go(route));
+  }
 }
 
 class _HeroSection extends StatelessWidget {
@@ -110,6 +142,7 @@ class _HeroSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    PerformanceProbe.recordBuild('HomeHero');
     return Container(
       padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
       decoration: BoxDecoration(
@@ -213,6 +246,7 @@ class _PrimaryActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    PerformanceProbe.recordBuild('HomePrimaryAction');
     return _PressableScale(
       onTap: onTap,
       borderRadius: BorderRadius.circular(24),
@@ -281,6 +315,7 @@ class _SecondaryActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    PerformanceProbe.recordBuild('HomeSecondaryAction');
     return _PressableScale(
       onTap: onTap,
       borderRadius: BorderRadius.circular(22),
@@ -344,7 +379,7 @@ class _SecondaryActionButton extends StatelessWidget {
   }
 }
 
-class _PressableScale extends StatefulWidget {
+class _PressableScale extends StatelessWidget {
   const _PressableScale({
     required this.child,
     required this.onTap,
@@ -356,32 +391,15 @@ class _PressableScale extends StatefulWidget {
   final BorderRadius borderRadius;
 
   @override
-  State<_PressableScale> createState() => _PressableScaleState();
-}
-
-class _PressableScaleState extends State<_PressableScale> {
-  bool _isPressed = false;
-
-  @override
   Widget build(BuildContext context) {
-    return AnimatedScale(
-      scale: _isPressed ? 0.98 : 1,
-      duration: const Duration(milliseconds: 120),
-      curve: Curves.easeOutCubic,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: widget.borderRadius,
-          splashColor: Colors.white.withValues(alpha: 0.08),
-          highlightColor: Colors.white.withValues(alpha: 0.03),
-          onHighlightChanged: (value) {
-            setState(() {
-              _isPressed = value;
-            });
-          },
-          onTap: widget.onTap,
-          child: widget.child,
-        ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: borderRadius,
+        splashColor: Colors.white.withValues(alpha: 0.08),
+        highlightColor: Colors.white.withValues(alpha: 0.03),
+        onTap: onTap,
+        child: child,
       ),
     );
   }

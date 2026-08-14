@@ -18,6 +18,7 @@ class _TeamGroupsPageState extends State<TeamGroupsPage> {
   final TeamGroupLocalDataSource _groupDataSource = TeamGroupLocalDataSource();
 
   List<TeamGroupModel> _groups = [];
+  Map<String, int> _playerCountsByGroup = const {};
   String? _deletingGroupId;
 
   @override
@@ -29,6 +30,7 @@ class _TeamGroupsPageState extends State<TeamGroupsPage> {
   void _loadGroups() {
     setState(() {
       _groups = _groupDataSource.getAllGroups();
+      _playerCountsByGroup = _groupDataSource.countPlayersByGroup();
     });
   }
 
@@ -272,11 +274,9 @@ class _TeamGroupsPageState extends State<TeamGroupsPage> {
                               const SizedBox(height: 12),
                           itemBuilder: (context, index) {
                             final group = _groups[index];
-                            final playersCount = _groupDataSource
-                                .countPlayersForGroup(group.id);
                             return _GroupCard(
                               group: group,
-                              playersCount: playersCount,
+                              playersCount: _playerCountsByGroup[group.id] ?? 0,
                               onEdit: () => _openEditGroupDialog(group),
                               onDelete: () => _confirmDeleteGroup(group),
                               isDeleting: _deletingGroupId == group.id,

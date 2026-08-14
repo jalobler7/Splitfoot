@@ -2,6 +2,7 @@ import '../../../app/routes/app_routes.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../core/enums/balance_mode.dart';
 import '../../../core/enums/sport_type.dart';
+import '../../../core/performance/performance_probe.dart';
 import '../../../data/datasources/player_local_datasource.dart';
 import '../../../data/datasources/team_group_local_datasource.dart';
 import '../../../data/models/player_model.dart';
@@ -26,8 +27,13 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
   final TeamBalanceService _teamBalanceService = TeamBalanceService();
 
   List<PlayerModel> _allPlayers = [];
+  List<PlayerModel> _sportPlayers = [];
   List<TeamGroupModel> _groups = [];
   final Set<String> _selectedPlayers = {};
+  final Map<String, ValueNotifier<bool>> _playerSelectionNotifiers = {};
+  final ValueNotifier<int> _selectionRevisionNotifier = ValueNotifier(0);
+  final ValueNotifier<_MatchPlayersViewData> _playersViewNotifier =
+      ValueNotifier(const _MatchPlayersViewData.empty());
 
   SportType _selectedSport = SportType.futsal;
   BalanceMode _balanceMode = BalanceMode.overallAverage;
@@ -42,6 +48,7 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
   final TextEditingController _searchController = TextEditingController();
 
   String _searchText = '';
+  bool _ignoreSearchChanges = false;
 
   @override
   void initState() {
@@ -54,11 +61,10 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
     final players = _dataSource.getAllPlayers();
     final groups = _groupDataSource.getAllGroups();
 
-    setState(() {
-      _allPlayers = players;
-      _groups = groups;
-      _selectedGroupId = _resolveSelectedGroupId(groups);
-    });
+    _allPlayers = players;
+    _groups = groups;
+    _selectedGroupId = _resolveSelectedGroupId(groups);
+    _refreshSportPlayers();
   }
 
   String? _resolveSelectedGroupId(List<TeamGroupModel> groups) {
@@ -71,28 +77,97 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
   }
 
   void _onSearchChanged() {
-    setState(() {
+    if (_ignoreSearchChanges) return;
+    PerformanceProbe.interaction('matchSetup.search', () {
       _searchText = _searchController.text.trim().toLowerCase();
+      _refreshVisiblePlayers();
     });
   }
 
   void _togglePlayer(String playerId) {
-    setState(() {
-      if (_selectedPlayers.contains(playerId)) {
-        _selectedPlayers.remove(playerId);
-      } else if (_selectedPlayers.length < _expectedTotalPlayers()) {
-        _selectedPlayers.add(playerId);
-      }
+    final wasSelected = _selectedPlayers.contains(playerId);
+    PerformanceProbe.interaction(
+      wasSelected ? 'matchSetup.player.deselect' : 'matchSetup.player.select',
+      () {
+        if (wasSelected) {
+          _selectedPlayers.remove(playerId);
+        } else if (_selectedPlayers.length < _expectedTotalPlayers()) {
+          _selectedPlayers.add(playerId);
+        } else {
+          return;
+        }
+        _playerSelectionNotifier(playerId).value = !wasSelected;
+        _notifySelectionChanged();
+      },
+    );
+  }
+
+  void _onBalanceModeChanged(BalanceMode? value) {
+    if (value == null) return;
+    PerformanceProbe.interaction('matchSetup.balanceMode', () {
+      _balanceMode = value;
     });
   }
 
   void _onTeamSizeChanged() {
-    setState(() {
+    PerformanceProbe.interaction('matchSetup.teamSize', () {
       final expected = _expectedTotalPlayers();
       while (_selectedPlayers.length > expected) {
-        _selectedPlayers.remove(_selectedPlayers.last);
+        final removedId = _selectedPlayers.last;
+        _selectedPlayers.remove(removedId);
+        _playerSelectionNotifier(removedId).value = false;
       }
+      _notifySelectionChanged();
     });
+  }
+
+  ValueNotifier<bool> _playerSelectionNotifier(String playerId) {
+    return _playerSelectionNotifiers.putIfAbsent(
+      playerId,
+      () => ValueNotifier(_selectedPlayers.contains(playerId)),
+    );
+  }
+
+  void _notifySelectionChanged() {
+    _selectionRevisionNotifier.value += 1;
+  }
+
+  void _clearSelection() {
+    for (final playerId in _selectedPlayers) {
+      _playerSelectionNotifier(playerId).value = false;
+    }
+    _selectedPlayers.clear();
+    _notifySelectionChanged();
+  }
+
+  void _refreshSportPlayers() {
+    _sportPlayers = PerformanceProbe.timeSync(
+      'process.matchSetup.sportPlayers',
+      () => _allPlayers
+          .where((player) => player.teamGroupId == _selectedGroupId)
+          .where((player) => player.sport == _sportKey(_selectedSport))
+          .toList(),
+      arguments: {'players': _allPlayers.length},
+    );
+    _refreshVisiblePlayers();
+  }
+
+  void _refreshVisiblePlayers() {
+    final visiblePlayers = PerformanceProbe.timeSync(
+      'process.matchSetup.visiblePlayers',
+      () => _sportPlayers.where((player) {
+        if (_searchText.isEmpty) return true;
+        return player.name.toLowerCase().contains(_searchText);
+      }).toList(),
+      arguments: {'players': _sportPlayers.length},
+    );
+    _playersViewNotifier.value = _MatchPlayersViewData(
+      sportPlayers: _sportPlayers,
+      visiblePlayers: visiblePlayers,
+      searchText: _searchText,
+      selectedSport: _selectedSport,
+      groupsEmpty: _groups.isEmpty,
+    );
   }
 
   String _sportLabel(SportType sport) {
@@ -131,22 +206,28 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
   void _onSportChanged(SportType? value) {
     if (value == null) return;
 
-    setState(() {
+    PerformanceProbe.interaction('matchSetup.sport', () {
       _selectedSport = value;
-      _selectedPlayers.clear();
+      _clearSelection();
+      _ignoreSearchChanges = true;
       _searchController.clear();
+      _ignoreSearchChanges = false;
       _searchText = '';
+      _refreshSportPlayers();
     });
   }
 
   void _onGroupChanged(String? value) {
     if (value == null || value == _selectedGroupId) return;
 
-    setState(() {
+    PerformanceProbe.interaction('matchSetup.group', () {
       _selectedGroupId = value;
-      _selectedPlayers.clear();
+      _clearSelection();
+      _ignoreSearchChanges = true;
       _searchController.clear();
+      _ignoreSearchChanges = false;
       _searchText = '';
+      _refreshSportPlayers();
     });
   }
 
@@ -209,12 +290,7 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
       return;
     }
 
-    final filteredPlayers = _allPlayers
-        .where((player) => player.teamGroupId == _selectedGroupId)
-        .where((player) => player.sport == _sportKey(_selectedSport))
-        .toList();
-
-    final selectedPlayersList = filteredPlayers
+    final selectedPlayersList = _sportPlayers
         .where((player) => _selectedPlayers.contains(player.id))
         .toList();
 
@@ -252,7 +328,11 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
         groupId: _selectedGroupId!,
         balanceMode: _balanceMode,
       );
-      final List<TeamResult> results = _teamBalanceService.generate(request);
+      final List<TeamResult> results = PerformanceProbe.timeSync(
+        'process.matchSetup.generateTeams',
+        () => _teamBalanceService.generate(request),
+        arguments: {'players': selectedPlayersList.length},
+      );
 
       if (results.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -284,26 +364,24 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
     _teamBController.dispose();
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
+    _selectionRevisionNotifier.dispose();
+    _playersViewNotifier.dispose();
+    for (final notifier in _playerSelectionNotifiers.values) {
+      notifier.dispose();
+    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final sportPlayers = _allPlayers
-        .where((player) => player.teamGroupId == _selectedGroupId)
-        .where((player) => player.sport == _sportKey(_selectedSport))
-        .toList();
+    PerformanceProbe.recordBuild('MatchSetupPage');
+    return PerformanceProbe.timeSync(
+      'build.MatchSetupPage',
+      () => _buildPage(context),
+    );
+  }
 
-    final visiblePlayers = sportPlayers.where((player) {
-      if (_searchText.isEmpty) return true;
-      return player.name.toLowerCase().contains(_searchText);
-    }).toList();
-
-    final selectionColor = _selectionStatusColor(context);
-    final hasRequiredPlayers =
-        _expectedTotalPlayers() > 0 &&
-        _selectedCount() == _expectedTotalPlayers();
-
+  Widget _buildPage(BuildContext context) {
     return Scaffold(
       body: Stack(
         children: [
@@ -405,10 +483,7 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
                                               ),
                                             )
                                             .toList(),
-                                        onChanged: (value) {
-                                          if (value == null) return;
-                                          setState(() => _balanceMode = value);
-                                        },
+                                        onChanged: _onBalanceModeChanged,
                                       ),
                                       const SizedBox(height: 12),
                                       Row(
@@ -449,26 +524,45 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
                                 child: _SectionSurface(
                                   child: Column(
                                     children: [
-                                      _PremiumTextField(
-                                        controller: _searchController,
-                                        label: 'Buscar atleta por nome',
-                                        icon: Icons.search_rounded,
-                                        suffixIcon: _searchText.isNotEmpty
-                                            ? IconButton(
-                                                onPressed: () =>
-                                                    _searchController.clear(),
-                                                icon: Icon(
-                                                  Icons.close_rounded,
-                                                  color: Colors.white
-                                                      .withValues(alpha: 0.64),
-                                                ),
-                                              )
-                                            : null,
+                                      ValueListenableBuilder<
+                                        _MatchPlayersViewData
+                                      >(
+                                        valueListenable: _playersViewNotifier,
+                                        builder: (context, view, _) =>
+                                            _PremiumTextField(
+                                              controller: _searchController,
+                                              label: 'Buscar atleta por nome',
+                                              icon: Icons.search_rounded,
+                                              suffixIcon:
+                                                  view.searchText.isNotEmpty
+                                                  ? IconButton(
+                                                      onPressed: () =>
+                                                          _searchController
+                                                              .clear(),
+                                                      icon: Icon(
+                                                        Icons.close_rounded,
+                                                        color: Colors.white
+                                                            .withValues(
+                                                              alpha: 0.64,
+                                                            ),
+                                                      ),
+                                                    )
+                                                  : null,
+                                            ),
                                       ),
                                       const SizedBox(height: 12),
-                                      _SelectionStatusCard(
-                                        text: _selectionStatusText(),
-                                        color: selectionColor,
+                                      ValueListenableBuilder<int>(
+                                        valueListenable:
+                                            _selectionRevisionNotifier,
+                                        builder: (context, _, _) {
+                                          final color = _selectionStatusColor(
+                                            context,
+                                          );
+                                          return _SelectionStatusCard(
+                                            text: _selectionStatusText(),
+                                            color: color,
+                                          );
+                                        },
                                       ),
                                     ],
                                   ),
@@ -478,98 +572,59 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
                                 child: SizedBox(height: 14),
                               ),
                               SliverToBoxAdapter(
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Atletas deste grupo',
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.w800,
-                                              letterSpacing: -0.3,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            '${visiblePlayers.length} dispon\u00EDveis em ${_sportLabel(_selectedSport)}',
-                                            style: TextStyle(
-                                              color: Colors.white.withValues(
-                                                alpha: 0.56,
+                                child: ValueListenableBuilder<_MatchPlayersViewData>(
+                                  valueListenable: _playersViewNotifier,
+                                  builder: (context, view, _) => Row(
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Atletas deste grupo',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.w800,
+                                                letterSpacing: -0.3,
                                               ),
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w500,
                                             ),
-                                          ),
-                                        ],
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              '${view.visiblePlayers.length} dispon\u00EDveis em ${_sportLabel(view.selectedSport)}',
+                                              style: TextStyle(
+                                                color: Colors.white.withValues(
+                                                  alpha: 0.56,
+                                                ),
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                    ),
-                                    _InfoBadge(
-                                      icon: Icons.how_to_reg_rounded,
-                                      label: '${_selectedCount()} selecionados',
-                                    ),
-                                  ],
+                                      ValueListenableBuilder<int>(
+                                        valueListenable:
+                                            _selectionRevisionNotifier,
+                                        builder: (context, _, _) => _InfoBadge(
+                                          icon: Icons.how_to_reg_rounded,
+                                          label:
+                                              '${_selectedCount()} selecionados',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                               const SliverToBoxAdapter(
                                 child: SizedBox(height: 12),
                               ),
-                              if (_groups.isEmpty)
-                                const SliverToBoxAdapter(
-                                  child: _EmptyState(
-                                    icon: Icons.folder_copy_rounded,
-                                    title: 'Nenhum grupo cadastrado',
-                                    subtitle:
-                                        'Crie um grupo antes de montar a partida.',
-                                  ),
-                                )
-                              else if (sportPlayers.isEmpty)
-                                const SliverToBoxAdapter(
-                                  child: _EmptyState(
-                                    icon: Icons.groups_outlined,
-                                    title:
-                                        'Nenhum atleta neste grupo para este esporte',
-                                    subtitle:
-                                        'Selecione outro grupo ou cadastre atletas vinculados a ele.',
-                                  ),
-                                )
-                              else if (visiblePlayers.isEmpty)
-                                const SliverToBoxAdapter(
-                                  child: _EmptyState(
-                                    icon: Icons.search_off_rounded,
-                                    title: 'Nenhum jogador encontrado',
-                                    subtitle:
-                                        'Ajuste a busca para localizar atletas.',
-                                  ),
-                                )
-                              else
-                                SliverList(
-                                  delegate: SliverChildBuilderDelegate(
-                                    (context, index) {
-                                      final itemIndex = index ~/ 2;
-                                      if (index.isOdd) {
-                                        return const SizedBox(height: 10);
-                                      }
-
-                                      final player = visiblePlayers[itemIndex];
-                                      final isSelected = _selectedPlayers
-                                          .contains(player.id);
-
-                                      return _SelectablePlayerCard(
-                                        player: player,
-                                        isSelected: isSelected,
-                                        onTap: () => _togglePlayer(player.id),
-                                      );
-                                    },
-                                    childCount: visiblePlayers.isEmpty
-                                        ? 0
-                                        : visiblePlayers.length * 2 - 1,
-                                  ),
-                                ),
+                              ValueListenableBuilder<_MatchPlayersViewData>(
+                                valueListenable: _playersViewNotifier,
+                                builder: (context, view, _) =>
+                                    _buildPlayersSliver(view),
+                              ),
                               const SliverToBoxAdapter(
                                 child: SizedBox(height: 104),
                               ),
@@ -589,25 +644,33 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
             bottom: 0,
             child: SafeArea(
               minimum: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: IgnorePointer(
-                ignoring: !hasRequiredPlayers,
-                child: AnimatedSlide(
-                  duration: const Duration(milliseconds: 260),
-                  curve: Curves.easeOutCubic,
-                  offset: hasRequiredPlayers
-                      ? Offset.zero
-                      : const Offset(0, 1.4),
-                  child: AnimatedOpacity(
-                    duration: const Duration(milliseconds: 220),
-                    curve: Curves.easeOut,
-                    opacity: hasRequiredPlayers ? 1 : 0,
-                    child: _PrimaryActionButton(
-                      label: 'Gerar Times',
-                      icon: Icons.auto_awesome_rounded,
-                      onTap: _generateTeams,
+              child: ValueListenableBuilder<int>(
+                valueListenable: _selectionRevisionNotifier,
+                builder: (context, _, _) {
+                  final hasRequiredPlayers =
+                      _expectedTotalPlayers() > 0 &&
+                      _selectedCount() == _expectedTotalPlayers();
+                  return IgnorePointer(
+                    ignoring: !hasRequiredPlayers,
+                    child: AnimatedSlide(
+                      duration: const Duration(milliseconds: 260),
+                      curve: Curves.easeOutCubic,
+                      offset: hasRequiredPlayers
+                          ? Offset.zero
+                          : const Offset(0, 1.4),
+                      child: AnimatedOpacity(
+                        duration: const Duration(milliseconds: 220),
+                        curve: Curves.easeOut,
+                        opacity: hasRequiredPlayers ? 1 : 0,
+                        child: _PrimaryActionButton(
+                          label: 'Gerar Times',
+                          icon: Icons.auto_awesome_rounded,
+                          onTap: _generateTeams,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
             ),
           ),
@@ -615,6 +678,77 @@ class _MatchSetupPageState extends State<MatchSetupPage> {
       ),
     );
   }
+
+  Widget _buildPlayersSliver(_MatchPlayersViewData view) {
+    if (view.groupsEmpty) {
+      return const SliverToBoxAdapter(
+        child: _EmptyState(
+          icon: Icons.folder_copy_rounded,
+          title: 'Nenhum grupo cadastrado',
+          subtitle: 'Crie um grupo antes de montar a partida.',
+        ),
+      );
+    }
+    if (view.sportPlayers.isEmpty) {
+      return const SliverToBoxAdapter(
+        child: _EmptyState(
+          icon: Icons.groups_outlined,
+          title: 'Nenhum atleta neste grupo para este esporte',
+          subtitle:
+              'Selecione outro grupo ou cadastre atletas vinculados a ele.',
+        ),
+      );
+    }
+    if (view.visiblePlayers.isEmpty) {
+      return const SliverToBoxAdapter(
+        child: _EmptyState(
+          icon: Icons.search_off_rounded,
+          title: 'Nenhum jogador encontrado',
+          subtitle: 'Ajuste a busca para localizar atletas.',
+        ),
+      );
+    }
+
+    return SliverList(
+      delegate: SliverChildBuilderDelegate((context, index) {
+        if (index.isOdd) return const SizedBox(height: 10);
+
+        final player = view.visiblePlayers[index ~/ 2];
+        return ValueListenableBuilder<bool>(
+          key: ValueKey(player.id),
+          valueListenable: _playerSelectionNotifier(player.id),
+          builder: (context, isSelected, _) => _SelectablePlayerCard(
+            player: player,
+            isSelected: isSelected,
+            onTap: () => _togglePlayer(player.id),
+          ),
+        );
+      }, childCount: view.visiblePlayers.length * 2 - 1),
+    );
+  }
+}
+
+class _MatchPlayersViewData {
+  const _MatchPlayersViewData({
+    required this.sportPlayers,
+    required this.visiblePlayers,
+    required this.searchText,
+    required this.selectedSport,
+    required this.groupsEmpty,
+  });
+
+  const _MatchPlayersViewData.empty()
+    : sportPlayers = const [],
+      visiblePlayers = const [],
+      searchText = '',
+      selectedSport = SportType.futsal,
+      groupsEmpty = true;
+
+  final List<PlayerModel> sportPlayers;
+  final List<PlayerModel> visiblePlayers;
+  final String searchText;
+  final SportType selectedSport;
+  final bool groupsEmpty;
 }
 
 class _SimpleHeader extends StatelessWidget {
@@ -651,6 +785,7 @@ class _SectionSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    PerformanceProbe.recordBuild('MatchSetupSectionSurface');
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -715,6 +850,7 @@ class _PremiumDropdown<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    PerformanceProbe.recordBuild('MatchSetupDropdown');
     return DropdownButtonFormField<T>(
       initialValue: value,
       dropdownColor: const Color(0xFF151A1C),
@@ -753,6 +889,7 @@ class _PremiumTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    PerformanceProbe.recordBuild('MatchSetupTextField');
     return TextField(
       controller: controller,
       keyboardType: keyboardType,
@@ -817,6 +954,7 @@ class _SelectionStatusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    PerformanceProbe.recordBuild('MatchSetupSelectionStatus');
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
@@ -866,77 +1004,81 @@ class _SelectablePlayerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    PerformanceProbe.recordBuild('MatchSetupPlayerCard');
     return _PressableScale(
       onTap: onTap,
       borderRadius: BorderRadius.circular(24),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOutCubic,
+      child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              isSelected
-                  ? AppColors.primary.withValues(alpha: 0.16)
-                  : const Color(0xFF161C1F),
-              const Color(0xFF111618),
-            ],
-          ),
-          border: Border.all(
-            color: isSelected
-                ? AppColors.primary.withValues(alpha: 0.44)
-                : Colors.white.withValues(alpha: 0.08),
-          ),
-          boxShadow: [
+          boxShadow: const [
             BoxShadow(
-              color: isSelected
-                  ? AppColors.primary.withValues(alpha: 0.14)
-                  : const Color(0x1A000000),
+              color: Color(0x1A000000),
               blurRadius: 18,
-              offset: const Offset(0, 10),
+              offset: Offset(0, 10),
             ),
           ],
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              _PremiumCheckbox(value: isSelected),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      player.name,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.2,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                isSelected
+                    ? AppColors.primary.withValues(alpha: 0.16)
+                    : const Color(0xFF161C1F),
+                const Color(0xFF111618),
+              ],
+            ),
+            border: Border.all(
+              color: isSelected
+                  ? AppColors.primary.withValues(alpha: 0.44)
+                  : Colors.white.withValues(alpha: 0.08),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                _PremiumCheckbox(value: isSelected),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        player.name,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.2,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _InfoBadge(
-                          icon: Icons.shield_outlined,
-                          label: player.position,
-                        ),
-                        _InfoBadge(
-                          icon: Icons.workspace_premium_rounded,
-                          label: 'Overall ${player.overall}',
-                        ),
-                      ],
-                    ),
-                  ],
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _InfoBadge(
+                            icon: Icons.shield_outlined,
+                            label: player.position,
+                          ),
+                          _InfoBadge(
+                            icon: Icons.workspace_premium_rounded,
+                            label: 'Overall ${player.overall}',
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -951,6 +1093,7 @@ class _PremiumCheckbox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    PerformanceProbe.recordBuild('MatchSetupPlayerCheckbox');
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOutCubic,
@@ -1026,6 +1169,7 @@ class _PrimaryActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    PerformanceProbe.recordBuild('MatchSetupPrimaryAction');
     return _PressableScale(
       onTap: onTap,
       borderRadius: BorderRadius.circular(24),
@@ -1156,7 +1300,7 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-class _PressableScale extends StatefulWidget {
+class _PressableScale extends StatelessWidget {
   const _PressableScale({
     required this.child,
     required this.onTap,
@@ -1168,33 +1312,15 @@ class _PressableScale extends StatefulWidget {
   final BorderRadius borderRadius;
 
   @override
-  State<_PressableScale> createState() => _PressableScaleState();
-}
-
-class _PressableScaleState extends State<_PressableScale> {
-  bool _isPressed = false;
-
-  @override
   Widget build(BuildContext context) {
-    return AnimatedScale(
-      scale: _isPressed ? 0.98 : 1,
-      duration: const Duration(milliseconds: 120),
-      curve: Curves.easeOutCubic,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: widget.borderRadius,
-          splashColor: Colors.white.withValues(alpha: 0.06),
-          highlightColor: Colors.white.withValues(alpha: 0.02),
-          onHighlightChanged: (value) {
-            if (_isPressed == value) return;
-            setState(() {
-              _isPressed = value;
-            });
-          },
-          onTap: widget.onTap,
-          child: widget.child,
-        ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: borderRadius,
+        splashColor: Colors.white.withValues(alpha: 0.06),
+        highlightColor: Colors.white.withValues(alpha: 0.02),
+        onTap: onTap,
+        child: child,
       ),
     );
   }

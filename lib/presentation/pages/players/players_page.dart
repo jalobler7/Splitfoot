@@ -1,5 +1,6 @@
 import 'package:divide_time/app/routes/app_routes.dart';
 import 'package:divide_time/app/theme/app_colors.dart';
+import 'package:divide_time/core/performance/performance_probe.dart';
 import 'package:divide_time/data/datasources/player_local_datasource.dart';
 import 'package:divide_time/data/datasources/team_group_local_datasource.dart';
 import 'package:divide_time/data/models/player_model.dart';
@@ -26,33 +27,24 @@ class _PlayersPageState extends State<PlayersPage> {
   List<PlayerModel> _allPlayers = [];
   List<PlayerModel> _filteredPlayers = [];
   List<TeamGroupModel> _groups = [];
+  List<String> _availablePositions = const [];
 
   String _searchQuery = '';
   final Set<String> _selectedPositions = {};
   String? _selectedSport;
   String? _selectedGroupId;
-  int _currentPage = 0;
-  bool _isHeaderCompact = false;
+  bool _ignoreSearchChanges = false;
+  late final ValueNotifier<_PlayersViewData> _viewNotifier;
+  final ValueNotifier<int> _currentPageNotifier = ValueNotifier(0);
+  final ValueNotifier<bool> _headerCompactNotifier = ValueNotifier(false);
   static const int _pageSize = 5;
 
   static const List<String> _sportOptions = ['Futsal', 'Fut7', 'Fut11'];
 
-  List<String> get _availablePositions {
-    final scopedPlayers = _playersForSelectedGroup();
-    final playersBySport = _selectedSport == null
-        ? scopedPlayers
-        : scopedPlayers
-              .where((player) => player.sport == _selectedSport)
-              .toList();
-
-    final positions = playersBySport.map((player) => player.position).toSet();
-    final orderedPositions = positions.toList()..sort();
-    return orderedPositions;
-  }
-
   @override
   void initState() {
     super.initState();
+    _viewNotifier = ValueNotifier(const _PlayersViewData.empty());
     _searchController.addListener(_onSearchChanged);
     _scrollController.addListener(_onScroll);
     _loadPlayers();
@@ -64,38 +56,54 @@ class _PlayersPageState extends State<PlayersPage> {
     _searchController.dispose();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+    _viewNotifier.dispose();
+    _currentPageNotifier.dispose();
+    _headerCompactNotifier.dispose();
     super.dispose();
   }
 
   void _onScroll() {
     final shouldCompact =
         _scrollController.hasClients && _scrollController.offset > 24;
-    if (shouldCompact == _isHeaderCompact) return;
+    if (shouldCompact == _headerCompactNotifier.value) return;
 
-    setState(() {
-      _isHeaderCompact = shouldCompact;
-    });
+    PerformanceProbe.interaction(
+      shouldCompact ? 'players.header.compact' : 'players.header.expand',
+      () => _headerCompactNotifier.value = shouldCompact,
+    );
   }
 
   void _onSearchChanged() {
+    if (_ignoreSearchChanges) return;
     final query = _searchController.text.trim().toLowerCase();
     if (query == _searchQuery) return;
 
-    _updateFilteredPlayers(() {
-      _searchQuery = query;
+    PerformanceProbe.interaction('players.search', () {
+      _updateFilteredPlayers(() => _searchQuery = query);
     });
   }
 
-  void _loadPlayers() {
+  void _loadPlayers({String? selectedGroupId, bool resetFilters = false}) {
     final players = _dataSource.getAllPlayers();
     final groups = _groupDataSource.getAllGroups();
 
     _updateFilteredPlayers(() {
       _allPlayers = players;
       _groups = groups;
-      _selectedGroupId = _resolveSelectedGroupId(groups);
-      _syncSelectedPositionsWithAvailable();
-    });
+      _selectedGroupId =
+          selectedGroupId != null &&
+              groups.any((group) => group.id == selectedGroupId)
+          ? selectedGroupId
+          : _resolveSelectedGroupId(groups);
+      if (resetFilters) {
+        _ignoreSearchChanges = true;
+        _searchController.clear();
+        _ignoreSearchChanges = false;
+        _searchQuery = '';
+        _selectedSport = null;
+        _selectedPositions.clear();
+      }
+    }, refreshPositions: true);
   }
 
   String? _resolveSelectedGroupId(List<TeamGroupModel> groups) {
@@ -111,14 +119,16 @@ class _PlayersPageState extends State<PlayersPage> {
     return groups.first.id;
   }
 
-  List<PlayerModel> _playersForSelectedGroup() {
-    if (_selectedGroupId == null) {
-      return const [];
-    }
+  List<String> _calculateAvailablePositions() {
+    if (_selectedGroupId == null) return const [];
 
-    return _allPlayers
-        .where((player) => player.teamGroupId == _selectedGroupId)
-        .toList();
+    final positions = <String>{};
+    for (final player in _allPlayers) {
+      if (player.teamGroupId != _selectedGroupId) continue;
+      if (_selectedSport != null && player.sport != _selectedSport) continue;
+      positions.add(player.position);
+    }
+    return positions.toList()..sort();
   }
 
   String _groupNameFor(String groupId) {
@@ -131,32 +141,50 @@ class _PlayersPageState extends State<PlayersPage> {
   }
 
   List<PlayerModel> _applyFilters() {
-    final filtered = _playersForSelectedGroup().where((player) {
-      final matchesName =
-          _searchQuery.isEmpty ||
-          player.name.toLowerCase().contains(_searchQuery);
-      final matchesSport =
-          _selectedSport == null || player.sport == _selectedSport;
-      final matchesPosition =
-          _selectedPositions.isEmpty ||
-          _selectedPositions.contains(player.position);
+    return PerformanceProbe.timeSync('process.players.applyFilters', () {
+      final filtered = _allPlayers.where((player) {
+        if (player.teamGroupId != _selectedGroupId) return false;
+        final matchesName =
+            _searchQuery.isEmpty ||
+            player.name.toLowerCase().contains(_searchQuery);
+        final matchesSport =
+            _selectedSport == null || player.sport == _selectedSport;
+        final matchesPosition =
+            _selectedPositions.isEmpty ||
+            _selectedPositions.contains(player.position);
 
-      return matchesName && matchesSport && matchesPosition;
-    }).toList();
+        return matchesName && matchesSport && matchesPosition;
+      }).toList();
 
-    filtered.sort(
-      (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
-    );
+      filtered.sort(
+        (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+      );
 
-    return filtered;
+      return filtered;
+    }, arguments: {'players': _allPlayers.length});
   }
 
-  void _updateFilteredPlayers([VoidCallback? updates]) {
-    setState(() {
-      updates?.call();
-      _filteredPlayers = _applyFilters();
-      _currentPage = 0;
-    });
+  void _updateFilteredPlayers(
+    VoidCallback? updates, {
+    bool refreshPositions = false,
+  }) {
+    updates?.call();
+    if (refreshPositions) {
+      _availablePositions = _calculateAvailablePositions();
+      _syncSelectedPositionsWithAvailable();
+    }
+    _filteredPlayers = _applyFilters();
+    _currentPageNotifier.value = 0;
+    _viewNotifier.value = _PlayersViewData(
+      allPlayers: _allPlayers,
+      filteredPlayers: _filteredPlayers,
+      groups: _groups,
+      availablePositions: _availablePositions,
+      selectedPositions: Set.unmodifiable(_selectedPositions),
+      searchQuery: _searchQuery,
+      selectedSport: _selectedSport,
+      selectedGroupId: _selectedGroupId,
+    );
   }
 
   void _syncSelectedPositionsWithAvailable() {
@@ -167,59 +195,59 @@ class _PlayersPageState extends State<PlayersPage> {
   void _onSportChanged(String? sport) {
     if (_selectedSport == sport) return;
 
-    _updateFilteredPlayers(() {
-      _selectedSport = sport;
-      _syncSelectedPositionsWithAvailable();
+    PerformanceProbe.interaction('players.sport', () {
+      _updateFilteredPlayers(
+        () => _selectedSport = sport,
+        refreshPositions: true,
+      );
     });
   }
 
   void _onGroupChanged(String? groupId) {
     if (_selectedGroupId == groupId) return;
 
-    _searchController.clear();
-    _updateFilteredPlayers(() {
-      _selectedGroupId = groupId;
-      _selectedSport = null;
-      _searchQuery = '';
-      _selectedPositions.clear();
-      _syncSelectedPositionsWithAvailable();
+    PerformanceProbe.interaction('players.group', () {
+      _ignoreSearchChanges = true;
+      _searchController.clear();
+      _ignoreSearchChanges = false;
+      _updateFilteredPlayers(() {
+        _selectedGroupId = groupId;
+        _selectedSport = null;
+        _searchQuery = '';
+        _selectedPositions.clear();
+      }, refreshPositions: true);
     });
   }
 
   void _togglePositionFilter(String position) {
-    _updateFilteredPlayers(() {
-      if (_selectedPositions.contains(position)) {
-        _selectedPositions.remove(position);
-      } else {
-        _selectedPositions.add(position);
-      }
+    PerformanceProbe.interaction('players.position', () {
+      _updateFilteredPlayers(() {
+        if (_selectedPositions.contains(position)) {
+          _selectedPositions.remove(position);
+        } else {
+          _selectedPositions.add(position);
+        }
+      });
     });
   }
 
-  int get _totalPages {
-    if (_filteredPlayers.isEmpty) return 1;
-    return (_filteredPlayers.length / _pageSize).ceil();
-  }
-
-  List<PlayerModel> get _paginatedPlayers {
-    if (_filteredPlayers.isEmpty) return const [];
-    final start = _currentPage * _pageSize;
-    final end = (start + _pageSize).clamp(0, _filteredPlayers.length);
-    return _filteredPlayers.sublist(start, end);
-  }
+  int _totalPagesFor(List<PlayerModel> players) =>
+      players.isEmpty ? 1 : (players.length / _pageSize).ceil();
 
   void _goToPreviousPage() {
-    if (_currentPage == 0) return;
-    setState(() {
-      _currentPage -= 1;
+    if (_currentPageNotifier.value == 0) return;
+    PerformanceProbe.interaction('players.pagination.previous', () {
+      _currentPageNotifier.value -= 1;
     });
     _scrollListToTop();
   }
 
   void _goToNextPage() {
-    if (_currentPage >= _totalPages - 1) return;
-    setState(() {
-      _currentPage += 1;
+    if (_currentPageNotifier.value >= _totalPagesFor(_filteredPlayers) - 1) {
+      return;
+    }
+    PerformanceProbe.interaction('players.pagination.next', () {
+      _currentPageNotifier.value += 1;
     });
     _scrollListToTop();
   }
@@ -282,8 +310,7 @@ class _PlayersPageState extends State<PlayersPage> {
       return null;
     }
 
-    _loadPlayers();
-    _onGroupChanged(createdGroup.id);
+    _loadPlayers(selectedGroupId: createdGroup.id, resetFilters: true);
     return createdGroup;
   }
 
@@ -339,6 +366,21 @@ class _PlayersPageState extends State<PlayersPage> {
 
   @override
   Widget build(BuildContext context) {
+    PerformanceProbe.recordBuild('PlayersPage');
+    return PerformanceProbe.timeSync(
+      'build.PlayersPage',
+      () => _buildPage(context),
+    );
+  }
+
+  bool _onScrollNotification(ScrollNotification notification) {
+    if (notification is ScrollStartNotification) {
+      PerformanceProbe.interaction('players.scroll', () {});
+    }
+    return false;
+  }
+
+  Widget _buildPage(BuildContext context) {
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -359,77 +401,92 @@ class _PlayersPageState extends State<PlayersPage> {
         ),
         child: SafeArea(
           top: true,
-          child: SingleChildScrollView(
-            controller: _scrollController,
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: EdgeInsets.fromLTRB(
-              16,
-              8,
-              16,
-              MediaQuery.viewInsetsOf(context).bottom + 108,
-            ),
-            child: Column(
-              children: [
-                _PlayersHeader(
-                  theme: theme,
-                  filteredCount: _filteredPlayers.length,
-                  isCompact: _isHeaderCompact,
-                  searchField: _SearchField(
-                    controller: _searchController,
-                    hasQuery: _searchQuery.isNotEmpty,
-                    onClear: () => _searchController.clear(),
-                    compact: _isHeaderCompact,
-                  ),
-                  groupDropdown: _GroupDropdown(
-                    value: _selectedGroupId,
-                    items: _groups,
-                    compact: _isHeaderCompact,
-                    onChanged: _onGroupChanged,
-                  ),
-                  sportDropdown: _SportDropdown(
-                    value: _selectedSport,
-                    items: _sportOptions,
-                    onChanged: _onSportChanged,
-                    compact: _isHeaderCompact,
-                  ),
-                  positionsContent: Align(
-                    alignment: Alignment.centerLeft,
-                    child: _availablePositions.isEmpty
-                        ? const _InlineNotice(
-                            text: 'Nenhuma posição disponível para o filtro.',
-                          )
-                        : Wrap(
-                            spacing: 10,
-                            runSpacing: 10,
-                            children: _availablePositions.map((position) {
-                              final isSelected = _selectedPositions.contains(
-                                position,
-                              );
-                              return _PositionChip(
-                                label: position,
-                                selected: isSelected,
-                                onTap: () => _togglePositionFilter(position),
-                              );
-                            }).toList(),
-                          ),
-                  ),
-                  positionSubtitle: _selectedPositions.isEmpty
-                      ? 'Todas as posi\u00E7\u00F5es'
-                      : '${_selectedPositions.length} filtro(s) ativo(s)',
-                  onBack: () => context.go(AppRoutes.home),
+          child: NotificationListener<ScrollNotification>(
+            onNotification: _onScrollNotification,
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: EdgeInsets.fromLTRB(
+                16,
+                8,
+                16,
+                MediaQuery.viewInsetsOf(context).bottom + 108,
+              ),
+              child: ValueListenableBuilder<_PlayersViewData>(
+                valueListenable: _viewNotifier,
+                builder: (context, view, _) => Column(
+                  children: [
+                    ValueListenableBuilder<bool>(
+                      valueListenable: _headerCompactNotifier,
+                      builder: (context, isCompact, _) => _PlayersHeader(
+                        theme: theme,
+                        filteredCount: view.filteredPlayers.length,
+                        isCompact: isCompact,
+                        searchField: _SearchField(
+                          controller: _searchController,
+                          hasQuery: view.searchQuery.isNotEmpty,
+                          onClear: () => _searchController.clear(),
+                          compact: isCompact,
+                        ),
+                        groupDropdown: _GroupDropdown(
+                          value: view.selectedGroupId,
+                          items: view.groups,
+                          compact: isCompact,
+                          onChanged: _onGroupChanged,
+                        ),
+                        sportDropdown: _SportDropdown(
+                          value: view.selectedSport,
+                          items: _sportOptions,
+                          onChanged: _onSportChanged,
+                          compact: isCompact,
+                        ),
+                        positionsContent: Align(
+                          alignment: Alignment.centerLeft,
+                          child: view.availablePositions.isEmpty
+                              ? const _InlineNotice(
+                                  text:
+                                      'Nenhuma posição disponível para o filtro.',
+                                )
+                              : Wrap(
+                                  spacing: 10,
+                                  runSpacing: 10,
+                                  children: view.availablePositions.map((
+                                    position,
+                                  ) {
+                                    final isSelected = view.selectedPositions
+                                        .contains(position);
+                                    return _PositionChip(
+                                      label: position,
+                                      selected: isSelected,
+                                      onTap: () =>
+                                          _togglePositionFilter(position),
+                                    );
+                                  }).toList(),
+                                ),
+                        ),
+                        positionSubtitle: view.selectedPositions.isEmpty
+                            ? 'Todas as posi\u00E7\u00F5es'
+                            : '${view.selectedPositions.length} filtro(s) ativo(s)',
+                        onBack: () => context.go(AppRoutes.home),
+                      ),
+                    ),
+                    ValueListenableBuilder<bool>(
+                      valueListenable: _headerCompactNotifier,
+                      builder: (context, isCompact, _) =>
+                          SizedBox(height: isCompact ? 12 : 18),
+                    ),
+                    ValueListenableBuilder<int>(
+                      valueListenable: _currentPageNotifier,
+                      builder: (context, currentPage, _) => AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 220),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        child: _buildPlayerContent(view, currentPage),
+                      ),
+                    ),
+                  ],
                 ),
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeOutCubic,
-                  height: _isHeaderCompact ? 12 : 18,
-                ),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 220),
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
-                  child: _buildPlayerContent(),
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -437,8 +494,9 @@ class _PlayersPageState extends State<PlayersPage> {
     );
   }
 
-  Widget _buildPlayerContent() {
-    if (_allPlayers.isEmpty) {
+  Widget _buildPlayerContent(_PlayersViewData view, int currentPage) {
+    PerformanceProbe.recordBuild('PlayersContent');
+    if (view.allPlayers.isEmpty) {
       return const _EmptyState(
         key: ValueKey('empty-all'),
         icon: Icons.groups_outlined,
@@ -448,7 +506,7 @@ class _PlayersPageState extends State<PlayersPage> {
       );
     }
 
-    if (_groups.isEmpty) {
+    if (view.groups.isEmpty) {
       return const _EmptyState(
         key: ValueKey('empty-groups'),
         icon: Icons.folder_copy_rounded,
@@ -457,7 +515,7 @@ class _PlayersPageState extends State<PlayersPage> {
       );
     }
 
-    if (_filteredPlayers.isEmpty) {
+    if (view.filteredPlayers.isEmpty) {
       return const _EmptyState(
         key: ValueKey('empty-filtered'),
         icon: Icons.search_off_rounded,
@@ -466,10 +524,14 @@ class _PlayersPageState extends State<PlayersPage> {
       );
     }
 
+    final start = currentPage * _pageSize;
+    final end = (start + _pageSize).clamp(0, view.filteredPlayers.length);
+    final paginatedPlayers = view.filteredPlayers.sublist(start, end);
+    final totalPages = _totalPagesFor(view.filteredPlayers);
     final children = <Widget>[];
 
-    for (var index = 0; index < _paginatedPlayers.length; index++) {
-      final player = _paginatedPlayers[index];
+    for (var index = 0; index < paginatedPlayers.length; index++) {
+      final player = paginatedPlayers[index];
       children
         ..add(
           _PlayerCard(
@@ -479,17 +541,15 @@ class _PlayersPageState extends State<PlayersPage> {
             onDelete: () => _confirmDeletePlayer(player),
           ),
         )
-        ..add(
-          SizedBox(height: index == _paginatedPlayers.length - 1 ? 18 : 14),
-        );
+        ..add(SizedBox(height: index == paginatedPlayers.length - 1 ? 18 : 14));
     }
 
     children.add(
       _PaginationBar(
-        currentPage: _currentPage + 1,
-        totalPages: _totalPages,
-        canGoBack: _currentPage > 0,
-        canGoForward: _currentPage < _totalPages - 1,
+        currentPage: currentPage + 1,
+        totalPages: totalPages,
+        canGoBack: currentPage > 0,
+        canGoForward: currentPage < totalPages - 1,
         onPrevious: _goToPreviousPage,
         onNext: _goToNextPage,
       ),
@@ -497,6 +557,38 @@ class _PlayersPageState extends State<PlayersPage> {
 
     return Column(key: const ValueKey('player-list'), children: children);
   }
+}
+
+class _PlayersViewData {
+  const _PlayersViewData({
+    required this.allPlayers,
+    required this.filteredPlayers,
+    required this.groups,
+    required this.availablePositions,
+    required this.selectedPositions,
+    required this.searchQuery,
+    required this.selectedSport,
+    required this.selectedGroupId,
+  });
+
+  const _PlayersViewData.empty()
+    : allPlayers = const [],
+      filteredPlayers = const [],
+      groups = const [],
+      availablePositions = const [],
+      selectedPositions = const {},
+      searchQuery = '',
+      selectedSport = null,
+      selectedGroupId = null;
+
+  final List<PlayerModel> allPlayers;
+  final List<PlayerModel> filteredPlayers;
+  final List<TeamGroupModel> groups;
+  final List<String> availablePositions;
+  final Set<String> selectedPositions;
+  final String searchQuery;
+  final String? selectedSport;
+  final String? selectedGroupId;
 }
 
 class _TopIconButton extends StatelessWidget {
@@ -557,6 +649,7 @@ class _PlayersHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    PerformanceProbe.recordBuild('PlayersHeader');
     return AnimatedContainer(
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeOutCubic,
@@ -622,39 +715,19 @@ class _PlayersHeader extends StatelessWidget {
               if (isCompact) _CompactCounterBadge(count: filteredCount),
             ],
           ),
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
-            height: isCompact ? 12 : 18,
-          ),
+          SizedBox(height: isCompact ? 12 : 18),
           searchField,
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
-            height: isCompact ? 10 : 14,
-          ),
+          SizedBox(height: isCompact ? 10 : 14),
           groupDropdown,
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
-            height: isCompact ? 10 : 14,
-          ),
+          SizedBox(height: isCompact ? 10 : 14),
           sportDropdown,
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
-            height: isCompact ? 12 : 16,
-          ),
+          SizedBox(height: isCompact ? 12 : 16),
           _SectionLabel(
             title: 'Posições',
             subtitle: positionSubtitle,
             compact: isCompact,
           ),
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
-            height: isCompact ? 8 : 10,
-          ),
+          SizedBox(height: isCompact ? 8 : 10),
           positionsContent,
         ],
       ),
@@ -703,6 +776,7 @@ class _SearchField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    PerformanceProbe.recordBuild('PlayersSearchField');
     return TextField(
       controller: controller,
       style: const TextStyle(
@@ -776,6 +850,7 @@ class _SportDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    PerformanceProbe.recordBuild('PlayersSportDropdown');
     return DropdownButtonFormField<String?>(
       initialValue: value,
       dropdownColor: const Color(0xFF161C1F),
@@ -848,6 +923,7 @@ class _GroupDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    PerformanceProbe.recordBuild('PlayersGroupDropdown');
     return DropdownButtonFormField<String>(
       initialValue: value,
       dropdownColor: const Color(0xFF161C1F),
@@ -988,6 +1064,7 @@ class _PositionChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    PerformanceProbe.recordBuild('PlayersPositionChip');
     final style = positionVisualStyle(label);
     return _PressableScale(
       onTap: onTap,
@@ -1051,6 +1128,7 @@ class _PlayerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    PerformanceProbe.recordBuild('PlayersPlayerCard');
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(26),
@@ -1478,6 +1556,7 @@ class _PaginationBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    PerformanceProbe.recordBuild('PlayersPaginationBar');
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1633,7 +1712,7 @@ class _PaginationButton extends StatelessWidget {
   }
 }
 
-class _PressableScale extends StatefulWidget {
+class _PressableScale extends StatelessWidget {
   const _PressableScale({
     required this.child,
     required this.onTap,
@@ -1645,33 +1724,15 @@ class _PressableScale extends StatefulWidget {
   final BorderRadius borderRadius;
 
   @override
-  State<_PressableScale> createState() => _PressableScaleState();
-}
-
-class _PressableScaleState extends State<_PressableScale> {
-  bool _isPressed = false;
-
-  @override
   Widget build(BuildContext context) {
-    return AnimatedScale(
-      scale: _isPressed ? 0.97 : 1,
-      duration: const Duration(milliseconds: 120),
-      curve: Curves.easeOutCubic,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: widget.borderRadius,
-          splashColor: Colors.white.withValues(alpha: 0.08),
-          highlightColor: Colors.white.withValues(alpha: 0.03),
-          onHighlightChanged: (value) {
-            if (_isPressed == value) return;
-            setState(() {
-              _isPressed = value;
-            });
-          },
-          onTap: widget.onTap,
-          child: widget.child,
-        ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: borderRadius,
+        splashColor: Colors.white.withValues(alpha: 0.08),
+        highlightColor: Colors.white.withValues(alpha: 0.03),
+        onTap: onTap,
+        child: child,
       ),
     );
   }
