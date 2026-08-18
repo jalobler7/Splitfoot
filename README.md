@@ -10,6 +10,8 @@ Splitfoot is a Flutter application for organizing amateur football players and g
 
 Splitfoot helps amateur football organizers manage groups and players, select the participants in a match, and generate balanced teams using different criteria. The application is local-first, works offline after installation or loading, and does not require an account.
 
+**Live Web version:** [https://splitfoot.netlify.app/](https://splitfoot.netlify.app/)
+
 ### Main features
 
 - Create, edit, and delete player groups.
@@ -145,6 +147,8 @@ Deleting a group also deletes its associated players after confirmation. A start
 ### Sobre o projeto
 
 O Splitfoot ajuda organizadores de futebol amador a gerenciar grupos e jogadores, selecionar os participantes de uma partida e gerar times equilibrados por diferentes critérios. O aplicativo prioriza dados locais, funciona offline após a instalação ou carregamento e não exige conta.
+
+**Versão Web online:** [https://splitfoot.netlify.app/](https://splitfoot.netlify.app/)
 
 ### Principais funcionalidades
 
